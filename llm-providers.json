@@ -1,9 +1,4 @@
 {
-  "openai": {
-    "name": "openai",
-    "baseUrl": "https://api.openai.com/v1",
-    "prefix": "openai"
-  },
   "deepseek": {
     "name": "deepseek",
     "baseUrl": "https://api.deepseek.com/v1",

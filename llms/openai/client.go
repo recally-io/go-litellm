@@ -130,7 +130,9 @@ func (c *OpenAI) GenerateText(ctx context.Context, model, prompt string, options
 			err = fmt.Errorf("generate text error: %w", content.Err)
 			return
 		}
-		resp = content.Response.Choices[0].Delta.Content
+		if content.Response != nil && len(content.Response.Choices) > 0 && content.Response.Choices[0].Message != nil {
+			resp = content.Response.Choices[0].Message.Content
+		}
 	}
 
 	c.ChatCompletion(ctx, req, streamingFunc, options...)

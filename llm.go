@@ -44,7 +44,7 @@ func New(providerName ProviderName, opts ...llms.ConfigOptions) (llms.LLM, error
 	switch providerName {
 	case ProviderNameOpenAI:
 		client := openai.New(opts...)
-		if err := setApiKeyFromEnv(client.Config, "OPENAI_API_KEY"); err != nil {
+		if err := setApiKeyFromEnv(&client.Config, "OPENAI_API_KEY"); err != nil {
 			return nil, err
 		}
 		return client, nil
@@ -76,7 +76,7 @@ func New(providerName ProviderName, opts ...llms.ConfigOptions) (llms.LLM, error
 	}
 }
 
-func setApiKeyFromEnv(cfg llms.Config, apiKeyEnvName string) error {
+func setApiKeyFromEnv(cfg *llms.Config, apiKeyEnvName string) error {
 	if cfg.APIKey != "" {
 		return nil
 	}
@@ -96,7 +96,7 @@ func newOpenAICompatibleClient(providerName ProviderName, apiKeyEnvName string, 
 	}
 	opts = append(defaultOpts, opts...)
 	client := openai.New(opts...)
-	if err := setApiKeyFromEnv(client.Config, apiKeyEnvName); err != nil {
+	if err := setApiKeyFromEnv(&client.Config, apiKeyEnvName); err != nil {
 		return nil, err
 	}
 	return client, nil

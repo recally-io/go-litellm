@@ -61,12 +61,6 @@ func (c *OpenAI) ListModels(ctx context.Context) ([]llms.Model, error) {
 		return nil, err
 	}
 
-	if c.Prefix != "" {
-		for i := range response.Data {
-			response.Data[i].ID = fmt.Sprintf("%s/%s", c.Prefix, response.Data[i].ID)
-		}
-	}
-
 	return response.Data, nil
 }
 

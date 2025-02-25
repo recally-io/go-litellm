@@ -18,7 +18,7 @@ var providers map[string]Provider
 // Provider represents a provider of LLM services.
 type Provider struct {
 	// Name is the name of the provider.
-	Name    string `json:"name"`
+	Name string `json:"name"`
 	// BaseURL is the base URL of the provider's API.
 	BaseURL string `json:"baseUrl"`
 	// Prefix is the prefix to use for listing models, the prefix will be added to the model name when calling the provider API.
@@ -31,20 +31,28 @@ type ProviderName string
 
 // ProviderOpenAICompatible is the provider name for OpenAI-compatible services.
 const ProviderOpenAICompatible ProviderName = "openai-compatible"
+
 // ProviderNameOpenAI is the provider name for OpenAI.
 const ProviderNameOpenAI ProviderName = "openai"
+
 // ProviderNameDeepSeek is the provider name for DeepSeek.
 const ProviderNameDeepSeek ProviderName = "deepseek"
+
 // ProviderNameQwen is the provider name for Qwen.
 const ProviderNameQwen ProviderName = "qwen"
+
 // ProviderNameGemini is the provider name for Gemini.
 const ProviderNameGemini ProviderName = "gemini"
+
 // ProviderNameOpenRouter is the provider name for OpenRouter.
 const ProviderNameOpenRouter ProviderName = "openrouter"
+
 // ProviderNameVolcengine is the provider name for Volcengine.
 const ProviderNameVolcengine ProviderName = "volcengine"
+
 // ProviderNameGroq is the provider name for Groq.
 const ProviderNameGroq ProviderName = "groq"
+
 // ProviderNameXai is the provider name for Xai.
 const ProviderNameXai ProviderName = "xai"
 

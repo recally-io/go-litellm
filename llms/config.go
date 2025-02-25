@@ -10,14 +10,14 @@ type Config struct {
 	// BaseURL is the base URL of the LLM provider.
 	BaseURL string `json:"base_url,omitempty"`
 	// APIKey is the API key for the LLM provider.
-	APIKey  string `json:"api_key"`
+	APIKey string `json:"api_key"`
 	// Prefix is the prefix to use for the model name.
-	Prefix  string `json:"prefix,omitempty"`
+	Prefix string `json:"prefix,omitempty"`
 
 	// Timeout is the timeout for the HTTP client.
-	Timeout    time.Duration `json:"timeout,omitempty"`
+	Timeout time.Duration `json:"timeout,omitempty"`
 	// HttpClient is the HTTP client to use.
-	HttpClient *http.Client  `json:"-"`
+	HttpClient *http.Client `json:"-"`
 }
 
 func (c *Config) SetHttpHeaders(req *http.Request, stream bool, extraHeaders map[string]string) {

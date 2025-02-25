@@ -1,0 +1,42 @@
+{
+  "openai": {
+    "name": "openai",
+    "baseUrl": "https://api.openai.com/v1",
+    "prefix": "openai"
+  },
+  "deepseek": {
+    "name": "deepseek",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "prefix": "deepseek"
+  },
+  "qwen": {
+    "name": "qwen",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "prefix": "qwen"
+  },
+  "gemini": {
+    "name": "gemini",
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "prefix": "gemini"
+  },
+  "openrouter": {
+    "name": "openrouter",
+    "baseUrl": "https://api.openrouter.ai/v1",
+    "prefix": "openrouter"
+  },
+  "volcengine": {
+    "name": "volcengine",
+    "baseUrl": "https://ark.cn-beijing.volces.com/api/v3",
+    "prefix": "volcengine"
+  },
+  "groq": {
+    "name": "groq",
+    "baseUrl": "https://api.groq.com/openai/v1",
+    "prefix": "groq"
+  },
+  "xai": {
+    "name": "xai",
+    "baseUrl": "https://api.x.ai/v1",
+    "prefix": "xai"
+  }
+}

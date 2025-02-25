@@ -10,6 +10,11 @@ import (
 	"github.com/recally-io/go-litellm/llms"
 )
 
+// streamResponse handles streaming responses from OpenAI's API.
+// It reads the response body line by line, processes each chunk of data,
+// and calls the provided streaming function with the processed content.
+// respBody: The response body from the HTTP request
+// streamingFunc: The callback function to handle each chunk of streaming data
 func streamResponse(respBody io.ReadCloser, streamingFunc func(content llms.StreamingChatCompletionResponse)) {
 	scanner := bufio.NewScanner(respBody)
 	defer respBody.Close()

@@ -14,16 +14,23 @@ import (
 
 const baseURL = "https://api.openai.com/v1"
 
+// OpenAI is the client for interacting with OpenAI's API.
+// It implements various LLM operations using the OpenAI API.
 type OpenAI struct {
 	llms.Config
 }
 
+// New creates a new OpenAI client with the provided configuration options.
+// opts: Configuration options for the client
 func New(opts ...llms.ConfigOptions) *OpenAI {
 	opts = slices.Insert(opts, 0, llms.WithBaseURL(baseURL))
 	config := llms.NewConfig(opts...)
 	return &OpenAI{Config: config}
 }
 
+// ListModels retrieves the list of available models from OpenAI.
+// ctx: Context for the request
+// Returns: List of available models or error if the request fails
 func (c *OpenAI) ListModels(ctx context.Context) ([]llms.Model, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/models", nil)
 	if err != nil {
@@ -63,6 +70,11 @@ func (c *OpenAI) ListModels(ctx context.Context) ([]llms.Model, error) {
 	return response.Data, nil
 }
 
+// ChatCompletion performs a chat completion request to OpenAI.
+// ctx: Context for the request
+// req: The chat completion request parameters
+// streamingFunc: Callback function for handling streaming responses
+// options: Additional request options
 func (c *OpenAI) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(content llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/chat/completions", nil)
 	if err != nil {
@@ -111,6 +123,12 @@ func (c *OpenAI) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequ
 	streamResponse(resp.Body, streamingFunc)
 }
 
+// GenerateText generates text using the specified model and prompt.
+// ctx: Context for the request
+// model: The model to use for text generation
+// prompt: The input prompt for text generation
+// options: Additional request options
+// Returns: Generated text or error if the request fails
 func (c *OpenAI) GenerateText(ctx context.Context, model, prompt string, options ...llms.RequestOption) (string, error) {
 	req := llms.ChatCompletionRequest{
 		Model:  model,
@@ -139,6 +157,12 @@ func (c *OpenAI) GenerateText(ctx context.Context, model, prompt string, options
 	return resp, err
 }
 
+// StreamGenerateText generates text in a streaming fashion.
+// ctx: Context for the request
+// model: The model to use for text generation
+// prompt: The input prompt for text generation
+// streamingTextFunc: Callback function for handling streaming text chunks
+// options: Additional request options
 func (c *OpenAI) StreamGenerateText(ctx context.Context, model, prompt string, streamingTextFunc func(resp llms.StreamingChatCompletionText), options ...llms.RequestOption) {
 	req := llms.ChatCompletionRequest{
 		Model:  model,

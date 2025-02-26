@@ -1,6 +1,6 @@
 package main
 
-import "github.com/recally-io/polyllm/server"
+import "polyllm-server/internal/server"
 
 func main() {
 

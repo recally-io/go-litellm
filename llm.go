@@ -56,6 +56,9 @@ const ProviderNameGroq ProviderName = "groq"
 // ProviderNameXai is the provider name for Xai.
 const ProviderNameXai ProviderName = "xai"
 
+// ProviderNameSiliconflow is the provider name for Siliconflow.
+const ProviderNameSiliconflow ProviderName = "siliconflow"
+
 // init initializes the providers map by unmarshaling the providersJSON.
 func init() {
 	if err := json.Unmarshal([]byte(providersJSON), &providers); err != nil {

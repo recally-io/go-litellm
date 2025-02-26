@@ -41,14 +41,15 @@ type config struct {
 	PORT   int    `env:"PORT" envdefault:"8088"`
 	APIKey string `env:"API_KEY"`
 
-	OpenAI     Provider `envPrefix:"OPENAI_"`
-	DeepSeek   Provider `envPrefix:"DEEPSEEK_"`
-	Qwen       Provider `envPrefix:"QWEN_"`
-	Gemini     Provider `envPrefix:"GEMINI_"`
-	OpenRouter Provider `envPrefix:"OPENROUTER_"`
-	Volcengine Provider `envPrefix:"VOLCENGINE_"`
-	Groq       Provider `envPrefix:"GROQ_"`
-	Xai        Provider `envPrefix:"XAI_"`
+	OpenAI      Provider `envPrefix:"OPENAI_"`
+	DeepSeek    Provider `envPrefix:"DEEPSEEK_"`
+	Qwen        Provider `envPrefix:"QWEN_"`
+	Gemini      Provider `envPrefix:"GEMINI_"`
+	OpenRouter  Provider `envPrefix:"OPENROUTER_"`
+	Volcengine  Provider `envPrefix:"VOLCENGINE_"`
+	Groq        Provider `envPrefix:"GROQ_"`
+	Xai         Provider `envPrefix:"XAI_"`
+	Siliconflow Provider `envPrefix:"SILICONFLOW_"`
 }
 
 var Settings = &config{}

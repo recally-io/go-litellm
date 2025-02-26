@@ -13,7 +13,7 @@
   },
   "openrouter": {
     "name": "openrouter",
-    "baseUrl": "https://api.openrouter.ai/v1"
+    "baseUrl": "https://openrouter.ai/api/v1"
   },
   "volcengine": {
     "name": "volcengine",
@@ -26,5 +26,9 @@
   "xai": {
     "name": "xai",
     "baseUrl": "https://api.x.ai/v1"
+  },
+  "siliconflow": {
+    "name": "siliconflow",
+    "baseUrl": "https://api.siliconflow.cn/v1"
   }
 }

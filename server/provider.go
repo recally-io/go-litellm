@@ -4,62 +4,88 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/recally-io/polyllm"
 	"github.com/recally-io/polyllm/llms"
 )
 
-var modelProviderMappings = make(map[string]*Provider)
+var (
+	modelProviderMappings = make(map[string]*Provider)
+	providerMapMutex      = &sync.RWMutex{}
+)
 
 func initProviders() error {
-	if Settings.OpenAI.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameOpenAI, Settings.OpenAI); err != nil {
-			return err
+	var wg sync.WaitGroup
+	errChan := make(chan error, 8) // Buffer for potential errors
+
+	// Function to handle provider initialization in a goroutine
+	initProviderAsync := func(providerName polyllm.ProviderName, provider Provider) {
+		defer wg.Done()
+		if err := initProvider(providerName, provider); err != nil {
+			errChan <- fmt.Errorf("failed to init %s: %w", providerName, err)
 		}
+	}
+
+	if Settings.OpenAI.APIKey != "" {
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameOpenAI, Settings.OpenAI)
 	}
 
 	if Settings.DeepSeek.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameDeepSeek, Settings.DeepSeek); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameDeepSeek, Settings.DeepSeek)
 	}
 
 	if Settings.Qwen.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameQwen, Settings.Qwen); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameQwen, Settings.Qwen)
 	}
 
 	if Settings.Gemini.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameGemini, Settings.Gemini); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameGemini, Settings.Gemini)
 	}
 
 	if Settings.OpenRouter.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameOpenRouter, Settings.OpenRouter); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameOpenRouter, Settings.OpenRouter)
 	}
 
 	if Settings.Volcengine.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameVolcengine, Settings.Volcengine); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameVolcengine, Settings.Volcengine)
 	}
 
 	if Settings.Groq.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameGroq, Settings.Groq); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameGroq, Settings.Groq)
 	}
 
 	if Settings.Xai.APIKey != "" {
-		if err := initProvider(polyllm.ProviderNameXai, Settings.Xai); err != nil {
-			return err
-		}
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameXai, Settings.Xai)
 	}
+
+	if Settings.Siliconflow.APIKey != "" {
+		wg.Add(1)
+		go initProviderAsync(polyllm.ProviderNameSiliconflow, Settings.Siliconflow)
+	}
+
+	// Wait for all goroutines to complete
+	go func() {
+		wg.Wait()
+		close(errChan)
+	}()
+
+	// Check for any errors
+	for err := range errChan {
+		return err // Return the first error encountered
+	}
+
+	providerMapMutex.RLock()
 	slog.Info("initialized providers", "models", modelProviderMappings)
+	providerMapMutex.RUnlock()
 	return nil
 }
 
@@ -119,18 +145,25 @@ func initProviderModels(provider *Provider) error {
 
 	slog.Info("initialized providers", "providers", modelSet)
 
+	// Safely write to the shared map
+	providerMapMutex.Lock()
 	for model := range modelSet {
 		if provider.Prefix != "" {
 			model = provider.Prefix + "/" + model
 		}
 		modelProviderMappings[model] = provider
 	}
+	providerMapMutex.Unlock()
 
 	return nil
 }
 
 func getProviderByModelName(modelName string) (*Provider, error) {
-	if provider, ok := modelProviderMappings[modelName]; ok {
+	providerMapMutex.RLock()
+	provider, ok := modelProviderMappings[modelName]
+	providerMapMutex.RUnlock()
+
+	if ok {
 		return provider, nil
 	}
 	return nil, fmt.Errorf("model not found: %s", modelName)

@@ -16,6 +16,9 @@ func StartServer() {
 	mux.HandleFunc("POST /chat/completions", authMiddleware(completionHandler))
 	mux.HandleFunc("POST /v1/chat/completions", authMiddleware(completionHandler))
 
+	mux.HandleFunc("GET /models", authMiddleware(listModelsHandler))
+	mux.HandleFunc("GET /v1/models", authMiddleware(listModelsHandler))
+
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", Settings.PORT),
 		Handler: mux,
@@ -28,13 +31,18 @@ func StartServer() {
 
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
+		if Settings.APIKey != "" {
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			headerKey := strings.TrimPrefix(authHeader, "Bearer ")
+			if headerKey != Settings.APIKey {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
-
-		// TODO: Add token validation logic here
 		next.ServeHTTP(w, r)
 	}
 }

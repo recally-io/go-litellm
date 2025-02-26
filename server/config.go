@@ -38,7 +38,8 @@ func (p *Provider) GetRealModel(model string) string {
 }
 
 type config struct {
-	PORT int `env:"PORT" envdefault:"8088"`
+	PORT   int    `env:"PORT" envdefault:"8088"`
+	APIKey string `env:"API_KEY"`
 
 	OpenAI     Provider `envPrefix:"OPENAI_"`
 	DeepSeek   Provider `envPrefix:"DEEPSEEK_"`

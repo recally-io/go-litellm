@@ -1,4 +1,4 @@
-module polyllm-server
+module github.com/recally-io/polyllm/examples/polyllm-server
 
 go 1.23.3
 

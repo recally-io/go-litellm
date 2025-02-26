@@ -6,7 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/recally-io/polyllm/examples/polyllm-cli/pkg/models"
+	"github.com/recally-io/polyllm"
+	"github.com/recally-io/polyllm/internal/cli"
 )
 
 // printUsage prints the usage information
@@ -28,9 +29,12 @@ func main() {
 	// Get remaining arguments
 	args := flag.Args()
 
+	service := cli.NewLLMService(polyllm.New())
+
+
 	// Check if the command is "models"
 	if len(args) > 0 && args[0] == "models" {
-		models.ListModels()
+		service.ListModels()
 		return
 	}
 
@@ -44,7 +48,7 @@ func main() {
 		}
 		
 		// Chat with the model
-		models.ChatWithModel(*modelFlag, prompt)
+		service.ChatCompletion(*modelFlag, prompt)
 		return
 	}
 

@@ -5,11 +5,9 @@ import (
 	_ "embed"
 	"encoding/json"
 	"log/slog"
-	"sync"
 
 	"github.com/recally-io/polyllm/llms"
-	"github.com/recally-io/polyllm/llms/openai"
-	"github.com/recally-io/polyllm/pkg/providers"
+	"github.com/recally-io/polyllm/providers"
 )
 
 //go:embed providers.json
@@ -17,14 +15,14 @@ var builtInProvidersBytes []byte
 var builtInProviders []*providers.Provider
 
 type PolyLLM struct {
-	mu                    sync.RWMutex
-	providers             []*providers.Provider
-	modelProviderMappings map[string]*providers.Provider
+	clients             []llms.LLM
+	modelClientMappings map[string]llms.LLM
 }
 
 func New() *PolyLLM {
 	p := &PolyLLM{
-		modelProviderMappings: make(map[string]*providers.Provider),
+		clients:             make([]llms.LLM, 0),
+		modelClientMappings: make(map[string]llms.LLM),
 	}
 
 	if err := json.Unmarshal(builtInProvidersBytes, &builtInProviders); err == nil {
@@ -36,49 +34,35 @@ func New() *PolyLLM {
 
 func (p *PolyLLM) AddProviders(providers ...*providers.Provider) {
 	for _, provider := range providers {
-		provider.Load()
-		if provider.APIKey != "" {
-			p.initProviderLLM(provider)
-			p.initProviderModels(provider)
+		p.AddProvider(provider)
+	}
+}
+
+func (p *PolyLLM) AddProvider(provider *providers.Provider) {
+	provider.Load()
+	if provider.APIKey != "" {
+		client, err := NewClient(provider)
+		if err != nil {
+			slog.Error("failed to create client", "err", err, "provider", provider.Name)
+			return
+		}
+		p.clients = append(p.clients, client)
+
+		models, err := client.ListModels(context.Background())
+		if err != nil {
+			slog.Error("failed to list models", "err", err, "provider", provider.Name)
+			return
+		}
+		for _, model := range models {
+			p.modelClientMappings[model.ID] = client
 		}
 	}
 }
 
-func (p *PolyLLM) initProviderLLM(provider *providers.Provider) {
-	switch provider.Name {
-	case providers.ProviderNameOpenAI, providers.ProviderNameDeepSeek, providers.ProviderNameQwen, providers.ProviderNameGemini, providers.ProviderNameOpenRouter, providers.ProviderNameVolcengine, providers.ProviderNameGroq, providers.ProviderNameXai, providers.ProviderNameSiliconflow:
-		provider.LLM = &openai.OpenAI{Provider: provider}
-	default:
-		slog.Error("unsupported provider", "provider", provider.Name)
-	}
-}
-
-func (p *PolyLLM) initProviderModels(provider *providers.Provider) {
-	slog.Info("initializing provider", "provider", provider.Name)
-	models, err := provider.GetModelList(context.Background())
-	if err != nil {
-		slog.Error("failed to get models", "err", err, "provider", provider.Name)
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.providers = append(p.providers, provider)
-	for _, model := range models {
-		p.modelProviderMappings[model.Name] = provider
-	}
-}
-
-func (p *PolyLLM) GetProviderForModel(model string) *providers.Provider {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.modelProviderMappings[model]
-}
-
 func (p *PolyLLM) ListModels(ctx context.Context) ([]llms.Model, error) {
 	models := make([]llms.Model, 0)
-	for _, provider := range p.providers {
-		providerModels, err := provider.GetModelList(ctx)
+	for _, client := range p.clients {
+		providerModels, err := client.ListModels(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -88,29 +72,33 @@ func (p *PolyLLM) ListModels(ctx context.Context) ([]llms.Model, error) {
 }
 
 func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
-	provider := p.GetProviderForModel(req.Model)
-	if provider == nil {
-		slog.Error("provider not found", "model", req.Model)
+	client := p.GetClientForModel(req.Model)
+	if client == nil {
+		slog.Error("client not found", "model", req.Model)
 		streamingFunc(llms.StreamingChatCompletionResponse{Err: ErrProviderNotFound})
 		return
 	}
-	provider.ChatCompletion(ctx, req, streamingFunc, options...)
+	client.ChatCompletion(ctx, req, streamingFunc, options...)
 }
 
 func (p *PolyLLM) GenerateText(ctx context.Context, model, prompt string, options ...llms.RequestOption) (string, error) {
-	provider := p.GetProviderForModel(model)
-	if provider == nil {
+	client := p.GetClientForModel(model)
+	if client == nil {
 		return "", ErrProviderNotFound
 	}
-	return provider.GenerateText(ctx, model, prompt, options...)
+	return client.GenerateText(ctx, model, prompt, options...)
 }
 
 func (p *PolyLLM) StreamGenerateText(ctx context.Context, model, prompt string, streamingTextFunc func(resp llms.StreamingChatCompletionText), options ...llms.RequestOption) {
-	provider := p.GetProviderForModel(model)
-	if provider == nil {
-		slog.Error("provider not found", "model", model)
+	client := p.GetClientForModel(model)
+	if client == nil {
+		slog.Error("client not found", "model", model)
 		streamingTextFunc(llms.StreamingChatCompletionText{Err: ErrProviderNotFound})
 		return
 	}
-	provider.StreamGenerateText(ctx, model, prompt, streamingTextFunc, options...)
+	client.StreamGenerateText(ctx, model, prompt, streamingTextFunc, options...)
+}
+
+func (p *PolyLLM) GetClientForModel(model string) llms.LLM {
+	return p.modelClientMappings[model]
 }

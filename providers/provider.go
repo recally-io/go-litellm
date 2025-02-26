@@ -11,29 +11,29 @@ import (
 	"github.com/recally-io/polyllm/llms"
 )
 
-// ProviderName is a string type for the names of supported LLM providers.
-type ProviderName string
+// ProviderType is a string type for the names of supported LLM providers.
+type ProviderType string
 
 // Provider constants for all supported providers
 const (
-	ProviderNameOpenAICompatible ProviderName = "openai-compatible"
-	ProviderNameOpenAI           ProviderName = "openai"
-	ProviderNameDeepSeek         ProviderName = "deepseek"
-	ProviderNameQwen             ProviderName = "qwen"
-	ProviderNameGemini           ProviderName = "gemini"
-	ProviderNameOpenRouter       ProviderName = "openrouter"
-	ProviderNameVolcengine       ProviderName = "volcengine"
-	ProviderNameGroq             ProviderName = "groq"
-	ProviderNameXai              ProviderName = "xai"
-	ProviderNameSiliconflow      ProviderName = "siliconflow"
+	ProviderTypeOpenAICompatible ProviderType = "openai-compatible"
+	ProviderTypeOpenAI           ProviderType = "openai"
+	ProviderTypeDeepSeek         ProviderType = "deepseek"
+	ProviderTypeQwen             ProviderType = "qwen"
+	ProviderTypeGemini           ProviderType = "gemini"
+	ProviderTypeOpenRouter       ProviderType = "openrouter"
+	ProviderTypeVolcengine       ProviderType = "volcengine"
+	ProviderTypeGroq             ProviderType = "groq"
+	ProviderTypeXai              ProviderType = "xai"
+	ProviderTypeSiliconflow      ProviderType = "siliconflow"
 )
 
 // Provider represents a provider of LLM services.
 type Provider struct {
-	llms.LLM
-
+	// Type is the type of the provider.
+	Type ProviderType `json:"type"`
 	// Name is the name of the provider.
-	Name ProviderName `json:"name" `
+	Name string `json:"name" `
 	// BaseURL is the base URL of the provider's API.
 	BaseURL string `json:"base_url,omitempty"`
 	// APIKey is the API key for authentication.
@@ -50,54 +50,10 @@ type Provider struct {
 	// In env it should be set as a key value value: "alias1=model1,alias2=model2"
 	ModelAlias map[string]string `json:"model_alias,omitempty"`
 
-	// Timeout is the timeout for the HTTP client.
-	Timeout time.Duration `json:"timeout,omitempty"`
+	// HttpTimeout is the timeout for the HTTP client.
+	HttpTimeout time.Duration `json:"timeout,omitempty"`
 	// HttpClient is the HTTP client to use.
 	HttpClient *http.Client `json:"-"`
-}
-
-type Option func(*Provider)
-
-func WithName(name ProviderName) Option {
-	return func(p *Provider) {
-		p.Name = name
-	}
-}
-
-func WithBaseURL(url string) Option {
-	return func(p *Provider) {
-		p.BaseURL = url
-	}
-}
-
-func WithAPIKey(apiKey string) Option {
-	return func(p *Provider) {
-		p.APIKey = apiKey
-	}
-}
-
-func WithEnvPrefix(envPrefix string) Option {
-	return func(p *Provider) {
-		p.EnvPrefix = envPrefix
-	}
-}
-
-func WithModelPrefix(prefix string) Option {
-	return func(p *Provider) {
-		p.ModelPrefix = prefix
-	}
-}
-
-func WithModels(models []llms.Model) Option {
-	return func(p *Provider) {
-		p.Models = models
-	}
-}
-
-func WithModelAlias(alias map[string]string) Option {
-	return func(p *Provider) {
-		p.ModelAlias = alias
-	}
 }
 
 func (p *Provider) Load() {
@@ -142,13 +98,13 @@ func (p *Provider) Load() {
 		if timeout != "" {
 			timeoutInt, err := strconv.Atoi(timeout)
 			if err == nil {
-				p.Timeout = time.Duration(timeoutInt) * time.Second
+				p.HttpTimeout = time.Duration(timeoutInt) * time.Second
 			}
 		}
 	}
 
-	if p.Timeout == 0 {
-		p.Timeout = 60 * time.Second
+	if p.HttpTimeout == 0 {
+		p.HttpTimeout = 60 * time.Second
 	}
 
 	if p.HttpClient == nil {
@@ -164,7 +120,7 @@ func (p *Provider) GetRealModel(model string) string {
 	return strings.TrimPrefix(model, p.ModelPrefix)
 }
 
-func (p *Provider) GetModelList(ctx context.Context) ([]llms.Model, error) {
+func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
 	models := make([]llms.Model, 0)
 
 	if len(p.Models) > 0 {
@@ -173,6 +129,9 @@ func (p *Provider) GetModelList(ctx context.Context) ([]llms.Model, error) {
 
 	if p.ModelAlias != nil {
 		for alias, model := range p.ModelAlias {
+			if p.ModelPrefix != "" {
+				alias = p.ModelPrefix + alias
+			}
 			models = append(models, llms.Model{
 				ID:     model,
 				Name:   alias,
@@ -181,15 +140,7 @@ func (p *Provider) GetModelList(ctx context.Context) ([]llms.Model, error) {
 		}
 	}
 
-	if len(models) == 0 {
-		fetchedModels, err := p.LLM.ListModels(ctx)
-		if err != nil {
-			return models, err
-		}
-		models = append(models, fetchedModels...)
-	}
-
-	return models, nil
+	return models
 }
 
 func (p *Provider) SetHttpHeaders(req *http.Request, stream bool, extraHeaders map[string]string) {
@@ -215,13 +166,35 @@ func (p *Provider) SetHttpHeaders(req *http.Request, stream bool, extraHeaders m
 	}
 }
 
-func New(opts ...Option) *Provider {
-	p := &Provider{
-		Timeout:    60 * time.Second,
-		HttpClient: http.DefaultClient,
+func (p *Provider) ToOptions() []Option {
+	opts := make([]Option, 0)
+
+	if p.Name != "" {
+		opts = append(opts, WithName(p.Name))
 	}
-	for _, opt := range opts {
-		opt(p)
+	if p.BaseURL != "" {
+		opts = append(opts, WithBaseURL(p.BaseURL))
 	}
-	return p
+	if p.APIKey != "" {
+		opts = append(opts, WithAPIKey(p.APIKey))
+	}
+	if p.EnvPrefix != "" {
+		opts = append(opts, WithEnvPrefix(p.EnvPrefix))
+	}
+	if p.ModelPrefix != "" {
+		opts = append(opts, WithModelPrefix(p.ModelPrefix))
+	}
+	if len(p.Models) != 0 {
+		opts = append(opts, WithModels(p.Models))
+	}
+	if len(p.ModelAlias) != 0 {
+		opts = append(opts, WithModelAlias(p.ModelAlias))
+	}
+	if p.HttpTimeout != 0 {
+		opts = append(opts, WithHttpTimeout(p.HttpTimeout))
+	}
+	if p.HttpClient != nil {
+		opts = append(opts, WithHttpClient(p.HttpClient))
+	}
+	return opts
 }

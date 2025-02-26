@@ -1,16 +1,14 @@
-package openai
+package llms
 
 import (
 	"errors"
 	"io"
 	"strings"
 	"testing"
-
-	"github.com/recally-io/polyllm/llms"
 )
 
 // testHelper collects streaming responses
-func testHelper(resp llms.StreamingChatCompletionResponse, responses *[]llms.StreamingChatCompletionResponse) {
+func testHelper(resp StreamingChatCompletionResponse, responses *[]StreamingChatCompletionResponse) {
 	*responses = append(*responses, resp)
 }
 
@@ -22,8 +20,8 @@ func TestStreamResponse_Normal(t *testing.T) {
 		"data: [DONE]\n"
 	reader := io.NopCloser(strings.NewReader(input))
 
-	var responses []llms.StreamingChatCompletionResponse
-	streamResponse(reader, func(resp llms.StreamingChatCompletionResponse) {
+	var responses []StreamingChatCompletionResponse
+	StreamingSSEResponse(reader, func(resp StreamingChatCompletionResponse) {
 		testHelper(resp, &responses)
 	})
 
@@ -59,8 +57,8 @@ func TestStreamResponse_InvalidJSON(t *testing.T) {
 	input := "data: {invalid json}\n"
 	reader := io.NopCloser(strings.NewReader(input))
 
-	var responses []llms.StreamingChatCompletionResponse
-	streamResponse(reader, func(resp llms.StreamingChatCompletionResponse) {
+	var responses []StreamingChatCompletionResponse
+	StreamingSSEResponse(reader, func(resp StreamingChatCompletionResponse) {
 		testHelper(resp, &responses)
 	})
 
@@ -89,8 +87,8 @@ func (e *errorReader) Close() error {
 // TestStreamResponse_ScannerError tests the behavior when the scanner encounters a read error.
 func TestStreamResponse_ScannerError(t *testing.T) {
 	reader := &errorReader{}
-	var responses []llms.StreamingChatCompletionResponse
-	streamResponse(reader, func(resp llms.StreamingChatCompletionResponse) {
+	var responses []StreamingChatCompletionResponse
+	StreamingSSEResponse(reader, func(resp StreamingChatCompletionResponse) {
 		testHelper(resp, &responses)
 	})
 
@@ -108,8 +106,8 @@ func TestStreamResponse_EmptyData(t *testing.T) {
 	input := "Not data line\n\nAnother line without prefix\n"
 	reader := io.NopCloser(strings.NewReader(input))
 
-	var responses []llms.StreamingChatCompletionResponse
-	streamResponse(reader, func(resp llms.StreamingChatCompletionResponse) {
+	var responses []StreamingChatCompletionResponse
+	StreamingSSEResponse(reader, func(resp StreamingChatCompletionResponse) {
 		responses = append(responses, resp)
 	})
 
@@ -124,8 +122,8 @@ func TestStreamResponse_NoChoices(t *testing.T) {
 		"data: [DONE]\n"
 	reader := io.NopCloser(strings.NewReader(input))
 
-	var responses []llms.StreamingChatCompletionResponse
-	streamResponse(reader, func(resp llms.StreamingChatCompletionResponse) {
+	var responses []StreamingChatCompletionResponse
+	StreamingSSEResponse(reader, func(resp StreamingChatCompletionResponse) {
 		responses = append(responses, resp)
 	})
 
@@ -144,8 +142,8 @@ func TestStreamResponse_NoContent(t *testing.T) {
 		"data: [DONE]\n"
 	reader := io.NopCloser(strings.NewReader(input))
 
-	var responses []llms.StreamingChatCompletionResponse
-	streamResponse(reader, func(resp llms.StreamingChatCompletionResponse) {
+	var responses []StreamingChatCompletionResponse
+	StreamingSSEResponse(reader, func(resp StreamingChatCompletionResponse) {
 		responses = append(responses, resp)
 	})
 

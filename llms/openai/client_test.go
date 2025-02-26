@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/pkg/providers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,7 +18,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, baseURL, client.BaseURL)
 
 	customURL := "https://custom.openai.com"
-	client = New(llms.WithBaseURL(customURL))
+	client = New(providers.WithBaseURL(customURL))
 	assert.Equal(t, customURL, client.BaseURL)
 }
 
@@ -68,8 +69,7 @@ func TestListModels(t *testing.T) {
 			defer server.Close()
 
 			client := New(
-				llms.WithBaseURL(server.URL),
-				llms.WithPrefix(tt.prefix),
+				providers.WithBaseURL(server.URL),
 			)
 
 			models, err := client.ListModels(context.Background())
@@ -150,7 +150,7 @@ func TestChatCompletion(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := New(llms.WithBaseURL(server.URL))
+			client := New(providers.WithBaseURL(server.URL))
 
 			var response llms.StreamingChatCompletionResponse
 			client.ChatCompletion(context.Background(), tt.request, func(resp llms.StreamingChatCompletionResponse) {
@@ -220,7 +220,7 @@ func TestGenerateText(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client := New(llms.WithBaseURL(server.URL))
+			client := New(providers.WithBaseURL(server.URL))
 
 			text, err := client.GenerateText(context.Background(), tt.model, tt.prompt)
 			if tt.expectError {

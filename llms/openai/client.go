@@ -10,6 +10,7 @@ import (
 	"slices"
 
 	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/pkg/providers"
 )
 
 const baseURL = "https://api.openai.com/v1"
@@ -17,15 +18,15 @@ const baseURL = "https://api.openai.com/v1"
 // OpenAI is the client for interacting with OpenAI's API.
 // It implements various LLM operations using the OpenAI API.
 type OpenAI struct {
-	llms.Config
+	*providers.Provider
 }
 
 // New creates a new OpenAI client with the provided configuration options.
 // opts: Configuration options for the client
-func New(opts ...llms.ConfigOptions) *OpenAI {
-	opts = slices.Insert(opts, 0, llms.WithBaseURL(baseURL))
-	config := llms.NewConfig(opts...)
-	return &OpenAI{Config: config}
+func New(opts ...providers.Option) *OpenAI {
+	opts = slices.Insert(opts, 0, providers.WithBaseURL(baseURL))
+	provider := providers.New(opts...)
+	return &OpenAI{Provider: provider}
 }
 
 // ListModels retrieves the list of available models from OpenAI.

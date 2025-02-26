@@ -7,31 +7,49 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 
 	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/providers"
 )
 
 const baseURL = "https://api.openai.com/v1"
 
-// OpenAI is the client for interacting with OpenAI's API.
+// Client is the client for interacting with OpenAI's API.
 // It implements various LLM operations using the OpenAI API.
-type OpenAI struct {
-	llms.Config
+type Client struct {
+	*providers.Provider
 }
 
 // New creates a new OpenAI client with the provided configuration options.
 // opts: Configuration options for the client
-func New(opts ...llms.ConfigOptions) *OpenAI {
-	opts = slices.Insert(opts, 0, llms.WithBaseURL(baseURL))
-	config := llms.NewConfig(opts...)
-	return &OpenAI{Config: config}
+func New(apiKey string, opts ...providers.Option) (*Client, error) {
+	provider := &providers.Provider{
+		Type:    providers.ProviderTypeOpenAI,
+		APIKey:  apiKey,
+		BaseURL: baseURL,
+	}
+	for _, opt := range opts {
+		opt(provider)
+	}
+
+	if provider.APIKey == "" {
+		return nil, fmt.Errorf("API key is required")
+	}
+
+	return &Client{Provider: provider}, nil
 }
 
 // ListModels retrieves the list of available models from OpenAI.
 // ctx: Context for the request
 // Returns: List of available models or error if the request fails
-func (c *OpenAI) ListModels(ctx context.Context) ([]llms.Model, error) {
+func (c *Client) ListModels(ctx context.Context) ([]llms.Model, error) {
+	// get models from provider config
+	models := c.Provider.GetModelList(ctx)
+	if len(models) > 0 {
+		return models, nil
+	}
+
+	// get models from API
 	req, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/models", nil)
 	if err != nil {
 		return nil, err
@@ -61,7 +79,16 @@ func (c *OpenAI) ListModels(ctx context.Context) ([]llms.Model, error) {
 		return nil, err
 	}
 
-	return response.Data, nil
+	models = response.Data
+	for i := range models {
+		if c.ModelPrefix != "" {
+			models[i].ID = c.ModelPrefix + models[i].ID
+		}
+		if models[i].Name == "" {
+			models[i].Name = models[i].ID
+		}
+	}
+	return models, nil
 }
 
 // ChatCompletion performs a chat completion request to OpenAI.
@@ -69,7 +96,7 @@ func (c *OpenAI) ListModels(ctx context.Context) ([]llms.Model, error) {
 // req: The chat completion request parameters
 // streamingFunc: Callback function for handling streaming responses
 // options: Additional request options
-func (c *OpenAI) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(content llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
+func (c *Client) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(content llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/chat/completions", nil)
 	if err != nil {
 		streamingFunc(llms.StreamingChatCompletionResponse{Err: fmt.Errorf("failed to create request: %w", err)})
@@ -114,7 +141,7 @@ func (c *OpenAI) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequ
 	}
 
 	// Process the streaming response
-	streamResponse(resp.Body, streamingFunc)
+	llms.StreamingSSEResponse(resp.Body, streamingFunc)
 }
 
 // GenerateText generates text using the specified model and prompt.
@@ -123,7 +150,7 @@ func (c *OpenAI) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequ
 // prompt: The input prompt for text generation
 // options: Additional request options
 // Returns: Generated text or error if the request fails
-func (c *OpenAI) GenerateText(ctx context.Context, model, prompt string, options ...llms.RequestOption) (string, error) {
+func (c *Client) GenerateText(ctx context.Context, model, prompt string, options ...llms.RequestOption) (string, error) {
 	req := llms.ChatCompletionRequest{
 		Model:  model,
 		Stream: false,
@@ -157,7 +184,7 @@ func (c *OpenAI) GenerateText(ctx context.Context, model, prompt string, options
 // prompt: The input prompt for text generation
 // streamingTextFunc: Callback function for handling streaming text chunks
 // options: Additional request options
-func (c *OpenAI) StreamGenerateText(ctx context.Context, model, prompt string, streamingTextFunc func(resp llms.StreamingChatCompletionText), options ...llms.RequestOption) {
+func (c *Client) StreamGenerateText(ctx context.Context, model, prompt string, streamingTextFunc func(resp llms.StreamingChatCompletionText), options ...llms.RequestOption) {
 	req := llms.ChatCompletionRequest{
 		Model:  model,
 		Stream: true,

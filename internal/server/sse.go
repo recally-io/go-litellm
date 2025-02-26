@@ -10,37 +10,6 @@ import (
 	"github.com/recally-io/polyllm/llms"
 )
 
-func completionHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
-		return
-	}
-
-	var req llms.ChatCompletionRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, "Failed to parse request body", http.StatusBadRequest)
-		return
-	}
-
-	provider, err := getProviderByModelName(req.Model)
-	if err != nil {
-		http.Error(w, "Failed to get LLM Client", http.StatusInternalServerError)
-		return
-	}
-
-	req.Model = provider.GetRealModel(req.Model)
-
-	if req.Stream {
-		handleStreamingResponse(w, ctx, provider.llm, req)
-	} else {
-		handleNonStreamingResponse(w, ctx, provider.llm, req)
-	}
-}
-
 func handleStreamingResponse(w http.ResponseWriter, ctx context.Context, llm llms.LLM, req llms.ChatCompletionRequest) {
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")

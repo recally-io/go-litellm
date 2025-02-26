@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 )
 
 const baseURL = "https://api.openai.com/v1"

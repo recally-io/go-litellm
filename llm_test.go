@@ -1,10 +1,10 @@
-package litellm
+package polyllm
 
 import (
 	"os"
 	"testing"
 
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 )
 
 func TestSetApiKeyFromEnv(t *testing.T) {

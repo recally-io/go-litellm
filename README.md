@@ -1,4 +1,4 @@
-# go-litellm
+# PolyLLM
 
 A powerful Go SDK that serves as a unified gateway to interact with 100+ LLM APIs using OpenAI-compatible format. This library simplifies the integration of various LLM providers into your Go applications.
 
@@ -22,12 +22,12 @@ A powerful Go SDK that serves as a unified gateway to interact with 100+ LLM API
 ## Installation
 
 ```bash
-go get github.com/recally-io/go-litellm
+go get github.com/recally-io/polyllm
 ```
 
 ## Quick Start
 
-Here's a simple example of how to use go-litellm:
+Here's a simple example of how to use polyllm:
 
 ```go
 package main
@@ -36,16 +36,16 @@ import (
     "context"
     "fmt"
     
-    "github.com/recally-io/go-litellm"
-    "github.com/recally-io/go-litellm/llms"
+    "github.com/recally-io/polyllm"
+    "github.com/recally-io/polyllm/llms"
 )
 
 func main() {
     // Initialize the LLM client, and it will read the API key from the environment variable OPENAI_API_KEY
-    llm := litellm.New(litellm.ProviderNameOpenAI)
+    llm := polyllm.New(polyllm.ProviderNameOpenAI)
 
     // Initialize the LLM client with a specific API key and base URL
-    llm := litellm.New(litellm.ProviderOpenAICompatible, llms.WithBaseURL("https://your-custom-endpoint"), llms.WithAPIKey("your-api-key"))
+    llm := polyllm.New(polyllm.ProviderOpenAICompatible, llms.WithBaseURL("https://your-custom-endpoint"), llms.WithAPIKey("your-api-key"))
     
     // Create a chat completion request
     req := llms.ChatCompletionRequest{
@@ -94,7 +94,7 @@ llm.ChatCompletion(ctx, req, func(content llms.StreamingChatCompletionResponse) 
 ### Custom Provider Configuration
 
 ```go
-llm := litellm.New(litellm.ProviderOpenAICompatible, "your-api-key",
+llm := polyllm.New(polyllm.ProviderOpenAICompatible, "your-api-key",
     llms.WithBaseURL("https://your-custom-endpoint"),
     llms.WithPrefix("custom-prefix"),
 )

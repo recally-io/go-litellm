@@ -1,4 +1,4 @@
-module github.com/recally-io/go-litellm
+module github.com/recally-io/polyllm
 
 go 1.23.3
 

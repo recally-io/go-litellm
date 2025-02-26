@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 )
 
 type ProviderModel struct {

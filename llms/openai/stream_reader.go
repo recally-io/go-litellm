@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 )
 
 // streamResponse handles streaming responses from OpenAI's API.

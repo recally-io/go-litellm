@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 	"github.com/stretchr/testify/assert"
 )
 

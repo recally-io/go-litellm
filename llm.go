@@ -1,4 +1,4 @@
-package litellm
+package polyllm
 
 import (
 	_ "embed"
@@ -6,8 +6,8 @@ import (
 	"errors"
 	"os"
 
-	"github.com/recally-io/go-litellm/llms"
-	"github.com/recally-io/go-litellm/llms/openai"
+	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/llms/openai"
 )
 
 //go:embed llm-providers.json

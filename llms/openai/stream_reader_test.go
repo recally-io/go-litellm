@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 )
 
 // testHelper collects streaming responses

@@ -1,6 +1,6 @@
 package main
 
-import "github.com/recally-io/go-litellm/server"
+import "github.com/recally-io/polyllm/server"
 
 func main() {
 

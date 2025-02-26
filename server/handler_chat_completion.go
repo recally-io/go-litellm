@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/recally-io/go-litellm/llms"
+	"github.com/recally-io/polyllm/llms"
 )
 
 func completionHandler(w http.ResponseWriter, r *http.Request) {

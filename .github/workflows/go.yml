@@ -1,28 +1,35 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
+name: golangci-lint and test
 
-name: Go
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+on: push
 
 jobs:
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.20'
-
-    - name: Build
-      run: go build -v ./...
-
-    - name: Test
-      run: go test -v ./...
+    golangci:
+        name: lint and test
+        runs-on: ubicloud-standard-2
+        steps:
+            - uses: actions/setup-go@v5
+              with:
+                  go-version: 1.23
+            - uses: actions/checkout@v4
+            - name: Cache Go Modules
+              uses: actions/cache@v3
+              with:
+                  path: |
+                    ~/.cache/go-build
+                    ~/go/pkg/mod
+                  key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+                  restore-keys: |
+                    ${{ runner.os }}-go-
+            - name: golangci-lint
+              uses: golangci/golangci-lint-action@v6
+              with:
+                  version: v1.54
+                  args: --timeout 10m0s
+                  only-new-issues: true
+            - name: Test
+              run: go test -v ./... | tee test-results.txt
+            - name: Upload Test Results
+              uses: actions/upload-artifact@v4
+              with:
+                  name: test-results
+                  path: test-results.txt

@@ -27,8 +27,8 @@ func (c *Config) SetHttpHeaders(req *http.Request, stream bool, extraHeaders map
 		"Cache-Control": "no-cache",
 		"Connection":    "keep-alive",
 		"Accept":        "application/json",
-		"HTTP-Referer":  "https://github.com/recally-io/go-litellm",
-		"X-Title":       "go-litellm",
+		"HTTP-Referer":  "https://github.com/recally-io/polyllm",
+		"X-Title":       "polyllm",
 	}
 	if stream {
 		headers["Accept"] = "text/event-stream"

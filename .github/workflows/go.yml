@@ -1,6 +1,9 @@
 name: golangci-lint and test
 
-on: push
+on:
+  push:
+    tags-ignore:
+      - "**"
 
 jobs:
   golangci:

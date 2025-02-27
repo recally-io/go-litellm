@@ -31,7 +31,6 @@ func main() {
 
 	service := cli.NewLLMService(polyllm.New())
 
-
 	// Check if the command is "models"
 	if len(args) > 0 && args[0] == "models" {
 		service.ListModels()
@@ -46,7 +45,7 @@ func main() {
 			fmt.Println("Error: No prompt provided")
 			os.Exit(1)
 		}
-		
+
 		// Chat with the model
 		service.ChatCompletion(*modelFlag, prompt)
 		return

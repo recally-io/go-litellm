@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 
 	"github.com/recally-io/polyllm/llms"
 )
@@ -27,13 +29,13 @@ func (s *LLMService) ListModels() {
 
 	fmt.Println("Available models:")
 	for _, model := range models {
-		fmt.Printf("  - %s\n", model.ID)
+		fmt.Printf(" %s - %s\n", model.Name, model.ID)
 	}
 }
 
 func (s *LLMService) ChatCompletion(modelName, prompt string) {
-	fmt.Printf("Chatting with model: %s\n", modelName)
-	fmt.Printf("Prompt: %s\n\n", prompt)
+	slog.Debug(fmt.Sprintf("Chatting with model: %s\n", modelName))
+	slog.Debug(fmt.Sprintf("Prompt: %s\n\n", prompt))
 
 	// Create a context
 	ctx := context.Background()
@@ -52,8 +54,8 @@ func (s *LLMService) ChatCompletion(modelName, prompt string) {
 
 	// Stream the response
 	s.llm.ChatCompletion(ctx, req, func(resp llms.StreamingChatCompletionResponse) {
-		if resp.Err != nil {
-			fmt.Printf("Error: %v\n", resp.Err)
+		if resp.Err != nil && resp.Err != io.EOF {
+			slog.Error("Error streaming response", "err", resp.Err)
 			return
 		}
 

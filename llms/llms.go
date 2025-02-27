@@ -5,6 +5,7 @@ import (
 )
 
 type LLM interface {
+	GetProviderName() string
 	ListModels(ctx context.Context) ([]Model, error)
 
 	ChatCompletion(ctx context.Context, req ChatCompletionRequest, streamingFunc func(resp StreamingChatCompletionResponse), options ...RequestOption)

@@ -39,6 +39,10 @@ func New(apiKey string, opts ...providers.Option) (*Client, error) {
 	return &Client{Provider: provider}, nil
 }
 
+func (c *Client) GetProviderName() string {
+	return c.Provider.Name
+}
+
 // ListModels retrieves the list of available models from OpenAI.
 // ctx: Context for the request
 // Returns: List of available models or error if the request fails

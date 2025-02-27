@@ -10,12 +10,12 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /go/bin/${BINARY_NAME} ./cmd/${BINARY_NAME}
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /go/bin/app ./cmd/${BINARY_NAME}
 
 # Run the binary
 FROM --platform=$BUILDPLATFORM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 
-COPY --from=build /go/bin/${BINARY_NAME} /app/${BINARY_NAME}
+COPY --from=build /go/bin/app /app/app
 
-CMD ["./${BINARY_NAME}"]
+CMD ["/app/app"]

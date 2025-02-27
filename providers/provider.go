@@ -114,10 +114,11 @@ func (p *Provider) Load() {
 
 // GetRealModel returns the real model name based on the provider's prefix and model alias.
 func (p *Provider) GetRealModel(model string) string {
+	model = strings.TrimPrefix(model, p.ModelPrefix)
 	if realModel, ok := p.ModelAlias[model]; ok {
 		return realModel
 	}
-	return strings.TrimPrefix(model, p.ModelPrefix)
+	return model
 }
 
 func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
@@ -128,13 +129,12 @@ func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
 	}
 
 	if p.ModelAlias != nil {
-		for alias, model := range p.ModelAlias {
+		for alias := range p.ModelAlias {
 			if p.ModelPrefix != "" {
 				alias = p.ModelPrefix + alias
 			}
 			models = append(models, llms.Model{
-				ID:     model,
-				Name:   alias,
+				ID:     alias,
 				Object: "model",
 			})
 		}

@@ -1,6 +1,35 @@
 # PolyLLM
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/recally-io/polyllm.svg)](https://pkg.go.dev/github.com/recally-io/polyllm)
+[![Go Report Card](https://goreportcard.com/badge/github.com/recally-io/polyllm)](https://goreportcard.com/report/github.com/recally-io/polyllm)
+[![License](https://img.shields.io/github/license/recally-io/polyllm)](LICENSE)
+
 PolyLLM is a unified Go interface for multiple Large Language Model (LLM) providers. It allows you to interact with various LLM APIs through a single, consistent interface, making it easy to switch between different providers or use multiple providers in the same application.
+
+## Table of Contents
+
+- [PolyLLM](#polyllm)
+	- [Table of Contents](#table-of-contents)
+	- [Features](#features)
+	- [Supported Providers](#supported-providers)
+	- [Installation](#installation)
+		- [Library](#library)
+		- [CLI Tool](#cli-tool)
+		- [HTTP Server](#http-server)
+	- [Usage](#usage)
+		- [API Usage](#api-usage)
+			- [Basic Example](#basic-example)
+			- [Chat Completion Example](#chat-completion-example)
+		- [CLI Usage](#cli-usage)
+			- [Installation](#installation-1)
+			- [Examples](#examples)
+		- [HTTP Server](#http-server-1)
+			- [Installation](#installation-2)
+			- [Starting the Server](#starting-the-server)
+			- [API Endpoints](#api-endpoints)
+			- [Example Request](#example-request)
+	- [Contributing](#contributing)
+	- [License](#license)
 
 ## Features
 
@@ -9,6 +38,8 @@ PolyLLM is a unified Go interface for multiple Large Language Model (LLM) provid
 - **Streaming Support**: Full support for streaming responses from supported LLM providers
 - **Extensible**: Simple to add support for new providers
 - **Multiple Interfaces**: Access LLMs through a Go API, CLI tool, or HTTP server
+- **OpenAI-Compatible**: HTTP server provides OpenAI-compatible endpoints
+- **Docker Support**: Ready-to-use Docker images for both CLI and server components
 
 ## Supported Providers
 
@@ -28,15 +59,35 @@ Additional providers can be easily added.
 
 ## Installation
 
+### Library
+
 ```bash
 go get github.com/recally-io/polyllm
+```
+
+### CLI Tool
+
+```bash
+go install github.com/recally-io/polyllm/cmd/polyllm-cli@latest
+
+# use docker 
+docker pull ghcr.io/recally-io/polyllm-cli:latest
+```
+
+### HTTP Server
+
+```bash
+go install github.com/recally-io/polyllm/cmd/polyllm-server@latest
+
+# use docker 
+docker pull ghcr.io/recally-io/polyllm-server:latest
 ```
 
 ## Usage
 
 ### API Usage
 
-### Basic Example
+#### Basic Example
 
 ```go
 package main
@@ -53,7 +104,8 @@ func main() {
 	// Create a new PolyLLM instance
 	llm := polyllm.New()
 
-	// Generate text using the default provider (first available)
+	// Generate text using OpenAI's GPT-3.5 Turbo
+	// Make sure OPENAI_API_KEY environment variable is set
 	response, err := llm.GenerateText(
 		context.Background(),
 		"openai/gpt-3.5-turbo",
@@ -68,7 +120,7 @@ func main() {
 }
 ```
 
-### Chat Completion Example
+#### Chat Completion Example
 
 ```go
 package main
@@ -117,8 +169,6 @@ func main() {
 
 ### CLI Usage
 
-PolyLLM comes with a command-line interface that allows you to interact with various LLM providers directly from your terminal.
-
 #### Installation
 
 ```bash
@@ -128,23 +178,26 @@ go install github.com/recally-io/polyllm/cmd/polyllm-cli@latest
 
 #### Examples
 
-List all available models:
 ```bash
+# Set your API key
+export OPENAI_API_KEY=your_api_key
+# or use docker
+alias polyllm-cli="docker run --rm -e OPENAI_API_KEY=your_api_key ghcr.io/recally-io/polyllm-cli:latest"
+
+# show help
+polyllm-cli --help
+
+# List available models
 polyllm-cli models
-```
 
-Chat with a specific model:
-```bash
+# Generate text
 polyllm-cli -m "openai/gpt-3.5-turbo" "Tell me a joke about programming"
-```
 
-```bash
+# Use a different model
 polyllm-cli -m "deepseek/deepseek-chat" "What is the meaning of life?"
 ```
 
 ### HTTP Server
-
-PolyLLM also provides an HTTP server that exposes OpenAI-compatible endpoints, making it easy to use with existing tools and libraries that support the OpenAI API.
 
 #### Installation
 
@@ -157,7 +210,10 @@ go install github.com/recally-io/polyllm/cmd/polyllm-server@latest
 
 ```bash
 # Start the server on default port 8088
+export OPENAI_API_KEY=your_api_key
 polyllm-server
+# or use docker 
+docker run --rm -e OPENAI_API_KEY=your_api_key -p 8088:8088 ghcr.io/recally-io/polyllm-server:latest
 
 # Or specify a custom port
 PORT=3000 polyllm-server
@@ -176,13 +232,7 @@ The server provides OpenAI-compatible endpoints:
 #### Example Request
 
 ```bash
-# Request to list models
-curl http://localhost:8088/models
-
-# Request with authentication (if enabled)
-curl -H "Authorization: Bearer your_api_key" http://localhost:8088/models
-
-# Chat completion request
+# In a terminal, make a request
 curl -X POST http://localhost:8088/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -191,33 +241,12 @@ curl -X POST http://localhost:8088/v1/chat/completions \
       {"role": "user", "content": "Hello, how are you?"}
     ]
   }'
-```
 
-### Configuration
+# Request to list models
+curl http://localhost:8088/models
 
-PolyLLM uses environment variables for configuration. Each provider has its own prefix:
-
-```
-OPENAI_API_KEY=your_api_key
-DEEPSEEK_API_KEY=your_api_key
-QWEN_API_KEY=your_api_key
-GEMINI_API_KEY=your_api_key
-OPENROUTER_API_KEY=your_api_key
-VOLCENGINE_API_KEY=your_api_key
-GROQ_API_KEY=your_api_key
-```
-
-You can also add providers programmatically:
-
-```go
-llm := polyllm.New()
-llm.AddProvider(&providers.Provider{
-	Name:       "custom-provider",
-	Type:       providers.ProviderTypeOpenAICompatible,
-	BaseURL:    "https://api.custom-provider.com/v1",
-	APIKey:     "your-api-key",
-	ModelPrefix: "custom/",
-})
+# Request with authentication (if enabled)
+curl -H "Authorization: Bearer your_api_key" http://localhost:8088/models
 ```
 
 ## Contributing

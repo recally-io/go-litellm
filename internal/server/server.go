@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/recally-io/polyllm"
+	"github.com/recally-io/polyllm/logger"
 )
 
 func StartServer() {
@@ -29,7 +30,7 @@ func StartServer() {
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: mux,
 	}
-	slog.Info("Starting Litellm server", "port", port)
+	slog.Info("Starting polyllm server", "port", port)
 	if err := server.ListenAndServe(); err != nil {
 		slog.Error("Error starting server", "err", err)
 	}
@@ -48,7 +49,7 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		// Log request details after processing
 		duration := time.Since(start)
-		slog.Info("Request processed",
+		logger.DefaultLogger.Info("Request processed",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rw.statusCode,

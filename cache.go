@@ -3,13 +3,13 @@ package polyllm
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/logger"
 )
 
 // ModelCache represents the cache of models
@@ -28,13 +28,14 @@ func init() {
 	// Create the cache directory if it does not exist
 	userCacheDir, err := os.UserCacheDir()
 	if err != nil {
-		slog.Error("Error getting user cache directory", "err", err)
+		logger.DefaultLogger.Error("Error getting user cache directory", "err", err)
 		cachePath = filepath.Join(os.TempDir(), "polyllm", "models")
 	} else {
 		cachePath = filepath.Join(userCacheDir, "polyllm", "models")
 	}
+	logger.DefaultLogger.Debug("cache path", "path", cachePath)
 	if err := os.MkdirAll(filepath.Dir(cachePath), 0755); err != nil {
-		slog.Error("Error creating cache directory", "err", err)
+		logger.DefaultLogger.Error("Error creating cache directory", "err", err)
 	}
 }
 
@@ -45,7 +46,7 @@ func loadModelCache(providerName string) (ModelCache, error) {
 	modelCachePath := filepath.Join(cachePath, providerName+".json")
 
 	var cache ModelCache
-	slog.Debug("loading model cache", "path", modelCachePath, "provider", providerName)
+	logger.DefaultLogger.Debug("loading model cache", "path", modelCachePath, "provider", providerName)
 
 	// Check if cache file exists
 	if _, err := os.Stat(modelCachePath); os.IsNotExist(err) {

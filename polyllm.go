@@ -5,10 +5,10 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"log/slog"
 	"time"
 
 	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/logger"
 	"github.com/recally-io/polyllm/providers"
 )
 
@@ -31,6 +31,8 @@ func New() *PolyLLM {
 
 	if err := json.Unmarshal(builtInProvidersBytes, &builtInProviders); err == nil {
 		p.AddProviders(builtInProviders...)
+	} else {
+		logger.DefaultLogger.Error("failed to unmarshal built-in providers", "err", err)
 	}
 
 	return p
@@ -51,14 +53,13 @@ func (p *PolyLLM) AddProvider(provider *providers.Provider) {
 	if provider.APIKey != "" {
 		client, err := NewClient(provider)
 		if err != nil {
-			slog.Error("failed to create client", "err", err, "provider", provider.Name)
+			logger.DefaultLogger.Error("failed to create client", "err", err, "provider", provider.Name)
 			return
 		}
 		p.clients = append(p.clients, client)
 
 		models, err := p.loadProviderModelsWithCache(context.Background(), client)
 		if err != nil {
-			slog.Error("failed to list models", "err", err, "provider", provider.Name)
 			return
 		}
 		for _, model := range models {
@@ -73,7 +74,6 @@ func (p *PolyLLM) ListModels(ctx context.Context) ([]llms.Model, error) {
 	for _, client := range p.clients {
 		clientModels, err := p.loadProviderModelsWithCache(ctx, client)
 		if err != nil {
-			slog.Error("failed to list models", "err", err, "provider", client.GetProviderName())
 			continue
 		}
 		models = append(models, clientModels...)
@@ -84,7 +84,7 @@ func (p *PolyLLM) ListModels(ctx context.Context) ([]llms.Model, error) {
 func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
 	client, model, err := p.GetProvider(req.Model)
 	if err != nil {
-		slog.Error("failed to get provider", "err", err, "model", req.Model)
+		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", req.Model)
 		streamingFunc(llms.StreamingChatCompletionResponse{Err: err})
 		return
 	}
@@ -95,7 +95,7 @@ func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionReq
 func (p *PolyLLM) GenerateText(ctx context.Context, model, prompt string, options ...llms.RequestOption) (string, error) {
 	client, model, err := p.GetProvider(model)
 	if err != nil {
-		slog.Error("failed to get provider", "err", err, "model", model)
+		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", model)
 		return "", err
 	}
 	return client.GenerateText(ctx, model, prompt, options...)
@@ -104,7 +104,7 @@ func (p *PolyLLM) GenerateText(ctx context.Context, model, prompt string, option
 func (p *PolyLLM) StreamGenerateText(ctx context.Context, model, prompt string, streamingTextFunc func(resp llms.StreamingChatCompletionText), options ...llms.RequestOption) {
 	client, model, err := p.GetProvider(model)
 	if err != nil {
-		slog.Error("failed to get provider", "err", err, "model", model)
+		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", model)
 		streamingTextFunc(llms.StreamingChatCompletionText{Err: err})
 		return
 	}
@@ -133,16 +133,16 @@ func (p *PolyLLM) loadProviderModelsWithCache(ctx context.Context, client llms.L
 	// Try to load models from cache
 	modelCache, err := loadModelCache(client.GetProviderName())
 	if err == nil && isModelCacheValid(modelCache) {
-		slog.Debug("using cached models", "timestamp", modelCache.Timestamp.Format(time.RFC1123))
+		logger.DefaultLogger.Debug("using cached models", "timestamp", modelCache.Timestamp.Format(time.RFC1123))
 		return modelCache.Models, nil
 	}
 
-	slog.Debug("loading models from providers")
+	logger.DefaultLogger.Debug("loading models from providers")
 	// load models using providers
 
 	providerModels, err := client.ListModels(ctx)
 	if err != nil {
-		slog.Error("failed to list models", "err", err)
+		logger.DefaultLogger.Error("failed to list models", "provider", client.GetProviderName(), "err", err)
 	}
 
 	if len(providerModels) == 0 {
@@ -152,7 +152,7 @@ func (p *PolyLLM) loadProviderModelsWithCache(ctx context.Context, client llms.L
 	modelCache.Models = providerModels
 	modelCache.Timestamp = time.Now()
 	if err := saveModelCache(client.GetProviderName(), modelCache); err != nil {
-		slog.Error("failed to save model cache", "err", err)
+		logger.DefaultLogger.Error("failed to save model cache", "err", err)
 	}
 	return modelCache.Models, nil
 }

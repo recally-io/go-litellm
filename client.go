@@ -17,7 +17,7 @@ func NewClient(provider *providers.Provider) (llms.LLM, error) {
 		return openai.New(provider.APIKey, opts...)
 	case providers.ProviderTypeOpenAICompatible:
 		return openaicompatible.New(provider.BaseURL, provider.APIKey, opts...)
-	case providers.ProviderTypeDeepSeek, providers.ProviderTypeGemini, providers.ProviderTypeQwen, providers.ProviderTypeOpenRouter, providers.ProviderTypeVolcengine, providers.ProviderTypeGroq, providers.ProviderTypeXai, providers.ProviderTypeSiliconflow:
+	case providers.ProviderTypeDeepSeek, providers.ProviderTypeGemini, providers.ProviderTypeQwen, providers.ProviderTypeOpenRouter, providers.ProviderTypeVolcengine, providers.ProviderTypeGroq, providers.ProviderTypeXai, providers.ProviderTypeSiliconflow, providers.ProviderTypeFireworks, providers.ProviderTypeTogether:
 		return openaicompatible.New(provider.BaseURL, provider.APIKey, opts...)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", provider.Type)

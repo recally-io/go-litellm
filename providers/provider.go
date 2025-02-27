@@ -26,6 +26,8 @@ const (
 	ProviderTypeGroq             ProviderType = "groq"
 	ProviderTypeXai              ProviderType = "xai"
 	ProviderTypeSiliconflow      ProviderType = "siliconflow"
+	ProviderTypeTogether         ProviderType = "together"
+	ProviderTypeFireworks        ProviderType = "fireworks"
 )
 
 // Provider represents a provider of LLM services.

@@ -25,7 +25,27 @@
     "type": "gemini",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
     "env_prefix": "GEMINI_",
-    "model_prefix": "gemini/"
+    "model_prefix": "gemini/",
+    "models": [
+      {
+        "id": "gemini-2.0-flash"
+      },
+      {
+        "id": "gemini-2.0-flash-lite"
+      },
+      {
+        "id": "gemini-1.5-flash"
+      },
+      {
+        "id": "gemini-1.5-flash-8b"
+      },
+      {
+        "id": "gemini-1.5-pro"
+      },
+      {
+        "id": "text-embedding-004"
+      }
+    ]
   },
   {
     "name": "openrouter",
@@ -61,5 +81,19 @@
     "base_url": "https://api.siliconflow.cn/v1",
     "env_prefix": "SILICONFLOW_",
     "model_prefix": "siliconflow/"
+  },
+  {
+    "name": "together",
+    "type": "together",
+    "base_url": "https://api.together.xyz/v1",
+    "env_prefix": "TOGETHER_",
+    "model_prefix": "together/"
+  },
+  {
+    "name": "fireworks",
+    "type": "fireworks",
+    "base_url": "https://api.fireworks.ai/inference/v1",
+    "env_prefix": "FIREWORKS_",
+    "model_prefix": "fireworks/"
   }
 ]

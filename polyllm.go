@@ -297,14 +297,15 @@ func llmToolToMCPToolRequest(tool llms.FunctionCall) (string, mcp.CallToolReques
 
 func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
 
+	finalToolCalls := make([]llms.ToolCall, 0)
 	localStreamingFunc := func(resp llms.StreamingChatCompletionResponse) {
-		p.streamingFunc(ctx, req, resp, streamingFunc)
+		p.streamingFunc(ctx, req, resp, streamingFunc, &finalToolCalls)
 	}
 
 	p.chatCompletion(ctx, req, localStreamingFunc, options...)
 }
 
-func (p *PolyLLM) streamingFunc(ctx context.Context, req llms.ChatCompletionRequest, resp llms.StreamingChatCompletionResponse, userStreamingFunc func(resp llms.StreamingChatCompletionResponse)) {
+func (p *PolyLLM) streamingFunc(ctx context.Context, req llms.ChatCompletionRequest, resp llms.StreamingChatCompletionResponse, userStreamingFunc func(resp llms.StreamingChatCompletionResponse), finalToolCalls *[]llms.ToolCall) {
 	// nonstreaming
 	if !req.Stream {
 		if resp.Err != nil && resp.Err != io.EOF {
@@ -333,18 +334,35 @@ func (p *PolyLLM) streamingFunc(ctx context.Context, req llms.ChatCompletionRequ
 		return
 	}
 
-	toolCalls := resp.Response.Choices[0].Delta.ToolCalls
+	choice := resp.Response.Choices[0]
+
+	if choice.FinishReason == llms.FinishReasonToolCalls {
+		// invoke mcp tools
+		req.Messages = append(req.Messages, llms.ChatCompletionMessage{
+			Role:      llms.ChatMessageRoleAssistant,
+			ToolCalls: *finalToolCalls,
+		})
+		messages := p.invokeMCPTools(ctx, *finalToolCalls)
+		req.Messages = append(req.Messages, messages...)
+		*finalToolCalls = nil
+		// send tool result to user
+		p.ChatCompletion(ctx, req, userStreamingFunc)
+	}
+
+	toolCalls := choice.Delta.ToolCalls
 	if len(toolCalls) == 0 {
 		userStreamingFunc(resp)
 		return
 	}
 
-	// invoke mcp tools
-	messages := p.invokeMCPTools(ctx, toolCalls)
-	req.Messages = append(req.Messages, messages...)
-	// send tool result to user
-	p.ChatCompletion(ctx, req, userStreamingFunc)
-
+	if len(*finalToolCalls) == 0 {
+		*finalToolCalls = append(*finalToolCalls, toolCalls...)
+	} else {
+		for _, tc := range toolCalls {
+			idx := tc.Index
+			(*finalToolCalls)[*idx].Function.Arguments += tc.Function.Arguments
+		}
+	}
 }
 
 func (p *PolyLLM) invokeMCPTools(ctx context.Context, tools []llms.ToolCall) []llms.ChatCompletionMessage {

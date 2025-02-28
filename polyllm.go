@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"time"
@@ -126,7 +127,7 @@ func (p *PolyLLM) ListModels(ctx context.Context) ([]llms.Model, error) {
 	return models, nil
 }
 
-func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
+func (p *PolyLLM) chatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
 	client, model, tools, err := p.preProcess(ctx, req.Model)
 	if err != nil {
 		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", req.Model)
@@ -272,4 +273,118 @@ func mcpToolToLlmsTool(mcpName string, tool mcp.Tool) llms.Tool {
 			Parameters:  tool.InputSchema,
 		},
 	}
+}
+
+func llmToolToMCPToolRequest(tool llms.FunctionCall) (string, mcp.CallToolRequest, error) {
+	req := mcp.CallToolRequest{}
+	params := strings.Split(tool.Name, "_")
+	if len(params) < 3 || params[0] != "mcp" {
+		return "", req, fmt.Errorf("tool name must be in format mcp_{mcp_server_name}_{tool_name}")
+	}
+	mcpName := params[1]
+
+	mcpToolName := strings.Join(params[2:], "_")
+	req.Params.Name = mcpToolName
+	var arguments map[string]any
+	if err := json.Unmarshal([]byte(tool.Arguments), &arguments); err != nil {
+		logger.DefaultLogger.Error("failed to unmarshal arguments", "error", err)
+		return "", req, err
+	}
+	req.Params.Arguments = arguments
+
+	return mcpName, req, nil
+}
+
+func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
+
+	localStreamingFunc := func(resp llms.StreamingChatCompletionResponse) {
+		p.streamingFunc(ctx, req, resp, streamingFunc)
+	}
+
+	p.chatCompletion(ctx, req, localStreamingFunc, options...)
+}
+
+func (p *PolyLLM) streamingFunc(ctx context.Context, req llms.ChatCompletionRequest, resp llms.StreamingChatCompletionResponse, userStreamingFunc func(resp llms.StreamingChatCompletionResponse)) {
+	// nonstreaming
+	if !req.Stream {
+		if resp.Err != nil && resp.Err != io.EOF {
+			userStreamingFunc(resp)
+			return
+		}
+		toolCalls := resp.Response.Choices[0].Message.ToolCalls
+		if len(toolCalls) == 0 {
+			userStreamingFunc(resp)
+			return
+		}
+
+		// invoke mcp tools
+		req.Messages = append(req.Messages, llms.ChatCompletionMessage{
+			Role:      llms.ChatMessageRoleAssistant,
+			ToolCalls: toolCalls,
+		})
+		messages := p.invokeMCPTools(ctx, toolCalls)
+		req.Messages = append(req.Messages, messages...)
+		// send tool result to user
+		p.ChatCompletion(ctx, req, userStreamingFunc)
+	}
+
+	if resp.Err != nil {
+		userStreamingFunc(resp)
+		return
+	}
+
+	toolCalls := resp.Response.Choices[0].Delta.ToolCalls
+	if len(toolCalls) == 0 {
+		userStreamingFunc(resp)
+		return
+	}
+
+	// invoke mcp tools
+	messages := p.invokeMCPTools(ctx, toolCalls)
+	req.Messages = append(req.Messages, messages...)
+	// send tool result to user
+	p.ChatCompletion(ctx, req, userStreamingFunc)
+
+}
+
+func (p *PolyLLM) invokeMCPTools(ctx context.Context, tools []llms.ToolCall) []llms.ChatCompletionMessage {
+	var messages []llms.ChatCompletionMessage
+
+	for _, tool := range tools {
+		mcpName, req, err := llmToolToMCPToolRequest(tool.Function)
+		if err != nil {
+			logger.DefaultLogger.Error("failed to convert tool to mcp tool request", "tool", tool.Function.Name, "err", err)
+			continue
+		}
+		resp, err := p.mcpClientMappings[mcpName].CallTool(ctx, req)
+		if err != nil {
+			logger.DefaultLogger.Error("failed to call tool", "tool", tool.Function.Name, "err", err, "args", req.Params.Arguments)
+			continue
+		}
+
+		if resp.Content == nil {
+			logger.DefaultLogger.Error("tool returned nil response", "tool", tool.Function.Name)
+			continue
+		}
+
+		logger.DefaultLogger.Info("start invoking mcp tool", "tool", tool.Function.Name)
+
+		var resultText string
+
+		for _, chunk := range resp.Content {
+			if contentMap, ok := chunk.(map[string]any); ok {
+				if text, ok := contentMap["text"].(string); ok {
+					resultText += fmt.Sprintf("%v", text)
+				}
+			}
+		}
+		messages = append(messages, llms.ChatCompletionMessage{
+			Role:       llms.ChatMessageRoleTool,
+			ToolCallID: tool.ID,
+			Content:    strings.TrimSpace(resultText),
+		})
+		logger.DefaultLogger.Info("finished invoking mcp tool", "tool", tool.Function.Name, "result", resultText[:min(100, len(resultText))])
+	}
+
+	return messages
 }

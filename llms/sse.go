@@ -47,7 +47,7 @@ func StreamingSSEResponse(respBody io.ReadCloser, streamingFunc func(content Str
 			return
 		}
 
-		if len(chunk.Choices) == 0 || chunk.Choices[0].Delta.Content == "" {
+		if len(chunk.Choices) == 0 {
 			continue
 		}
 

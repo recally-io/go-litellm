@@ -44,7 +44,7 @@ func CreateMCPClients(
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		logger.DefaultLogger.Info("Initializing server...", "name", name)
+		logger.DefaultLogger.Info("Initializing mcp server...", "name", name)
 		initRequest := mcp.InitializeRequest{}
 		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 		initRequest.Params.ClientInfo = mcp.Implementation{
@@ -67,6 +67,7 @@ func CreateMCPClients(
 		}
 
 		clients[name] = client
+		logger.DefaultLogger.Info("Initialized mcp server", "name", name)
 	}
 
 	return clients, nil

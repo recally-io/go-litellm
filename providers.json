@@ -3,15 +3,13 @@
     "name": "openai",
     "type": "openai",
     "base_url": "https://api.openai.com/v1",
-    "env_prefix": "OPENAI_",
-    "model_prefix": "openai/"
+    "env_prefix": "OPENAI_"
   },
   {
     "name": "deepseek",
     "type": "deepseek",
     "base_url": "https://api.deepseek.com/v1",
-    "env_prefix": "DEEPSEEK_",
-    "model_prefix": "deepseek/"
+    "env_prefix": "DEEPSEEK_"
   },
   {
     "name": "qwen",
@@ -25,7 +23,6 @@
     "type": "gemini",
     "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
     "env_prefix": "GEMINI_",
-    "model_prefix": "gemini/",
     "models": [
       {
         "id": "gemini-2.0-flash"
@@ -72,8 +69,7 @@
     "name": "xai",
     "type": "xai",
     "base_url": "https://api.x.ai/v1",
-    "env_prefix": "XAI_",
-    "model_prefix": "xai/"
+    "env_prefix": "XAI_"
   },
   {
     "name": "siliconflow",

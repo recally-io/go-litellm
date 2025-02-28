@@ -116,6 +116,8 @@ func (p *Provider) Load() {
 
 // GetRealModel returns the real model name based on the provider's prefix and model alias.
 func (p *Provider) GetRealModel(model string) string {
+	// remove everything after ?
+	model = strings.Split(model, "?")[0]
 	model = strings.TrimPrefix(model, p.ModelPrefix)
 	if realModel, ok := p.ModelAlias[model]; ok {
 		return realModel

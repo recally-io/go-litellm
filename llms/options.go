@@ -64,3 +64,9 @@ func WithExtraHeaders(headers map[string]string) RequestOption {
 		o.ExtraHeaders = headers
 	}
 }
+
+func WithTools(tools []Tool) RequestOption {
+	return func(o *ChatCompletionRequest) {
+		o.Tools = tools
+	}
+}

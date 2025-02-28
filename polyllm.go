@@ -5,10 +5,18 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"slices"
+	"strings"
 	"time"
 
+	"maps"
+
+	mcpclient "github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/recally-io/polyllm/llms"
 	"github.com/recally-io/polyllm/logger"
+	"github.com/recally-io/polyllm/mcps"
 	"github.com/recally-io/polyllm/providers"
 )
 
@@ -17,22 +25,59 @@ var builtInProvidersBytes []byte
 var builtInProviders []*providers.Provider
 
 type PolyLLM struct {
+	Options
 	clients               []llms.LLM
 	modelProviderMappings map[string]*providers.Provider
 	modelClientMappings   map[string]llms.LLM
+
+	mcpClientMappings map[string]mcpclient.MCPClient
 }
 
-func New() *PolyLLM {
+type Options struct {
+	providers  []*providers.Provider
+	mcpServers map[string]mcps.ServerConfig
+}
+
+type Option func(*Options)
+
+func WithMCPServerConfig(mcpServers map[string]mcps.ServerConfig) Option {
+	return func(p *Options) {
+		p.mcpServers = mcpServers
+	}
+}
+
+func WithProviders(providers ...*providers.Provider) Option {
+	return func(p *Options) {
+		p.providers = providers
+	}
+}
+
+func New(opts ...Option) *PolyLLM {
 	p := &PolyLLM{
 		clients:               make([]llms.LLM, 0),
 		modelProviderMappings: make(map[string]*providers.Provider),
 		modelClientMappings:   make(map[string]llms.LLM),
 	}
 
-	if err := json.Unmarshal(builtInProvidersBytes, &builtInProviders); err == nil {
-		p.AddProviders(builtInProviders...)
-	} else {
+	if err := json.Unmarshal(builtInProvidersBytes, &builtInProviders); err != nil {
 		logger.DefaultLogger.Error("failed to unmarshal built-in providers", "err", err)
+	}
+
+	for _, opt := range opts {
+		opt(&p.Options)
+	}
+
+	// add built-in providers and user-provided providers
+	providers := append(builtInProviders, p.providers...)
+	p.AddProviders(providers...)
+
+	// start MCP clients
+	if len(p.mcpServers) > 0 {
+		mcpClients, err := mcps.CreateMCPClients(p.mcpServers)
+		if err != nil {
+			logger.DefaultLogger.Error("failed to create MCP clients", "err", err)
+		}
+		p.mcpClientMappings = mcpClients
 	}
 
 	return p
@@ -82,32 +127,37 @@ func (p *PolyLLM) ListModels(ctx context.Context) ([]llms.Model, error) {
 }
 
 func (p *PolyLLM) ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption) {
-	client, model, err := p.GetProvider(req.Model)
+	client, model, tools, err := p.preProcess(ctx, req.Model)
 	if err != nil {
 		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", req.Model)
 		streamingFunc(llms.StreamingChatCompletionResponse{Err: err})
 		return
+	}
+	if len(tools) > 0 {
+		req.Tools = append(req.Tools, tools...)
 	}
 	req.Model = model
 	client.ChatCompletion(ctx, req, streamingFunc, options...)
 }
 
 func (p *PolyLLM) GenerateText(ctx context.Context, model, prompt string, options ...llms.RequestOption) (string, error) {
-	client, model, err := p.GetProvider(model)
+	client, model, tools, err := p.preProcess(ctx, model)
 	if err != nil {
 		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", model)
 		return "", err
 	}
+	options = append(options, llms.WithTools(tools))
 	return client.GenerateText(ctx, model, prompt, options...)
 }
 
 func (p *PolyLLM) StreamGenerateText(ctx context.Context, model, prompt string, streamingTextFunc func(resp llms.StreamingChatCompletionText), options ...llms.RequestOption) {
-	client, model, err := p.GetProvider(model)
+	client, model, tools, err := p.preProcess(ctx, model)
 	if err != nil {
 		logger.DefaultLogger.Error("failed to get provider", "err", err, "model", model)
 		streamingTextFunc(llms.StreamingChatCompletionText{Err: err})
 		return
 	}
+	options = append(options, llms.WithTools(tools))
 	client.StreamGenerateText(ctx, model, prompt, streamingTextFunc, options...)
 }
 
@@ -115,18 +165,27 @@ func (p *PolyLLM) GetClientForModel(model string) llms.LLM {
 	return p.modelClientMappings[model]
 }
 
-func (p *PolyLLM) GetProvider(model string) (llms.LLM, string, error) {
+func (p *PolyLLM) preProcess(ctx context.Context, model string) (llms.LLM, string, []llms.Tool, error) {
+	info := strings.Split(model, "?")
+	model = info[0]
+
 	provider, ok := p.modelProviderMappings[model]
 	if !ok {
-		return nil, "", ErrProviderNotFound
+		return nil, "", nil, ErrProviderNotFound
 	}
 
 	client, ok := p.modelClientMappings[model]
 	if !ok {
-		return nil, "", ErrProviderNotFound
+		return nil, "", nil, ErrProviderNotFound
+	}
+	providerModel := provider.GetRealModel(model)
+
+	tools := []llms.Tool{}
+	if len(info) > 1 {
+		tools = p.GetMCPTools(ctx, info[1])
 	}
 
-	return client, provider.GetRealModel(model), nil
+	return client, providerModel, tools, nil
 }
 
 func (p *PolyLLM) loadProviderModelsWithCache(ctx context.Context, client llms.LLM) ([]llms.Model, error) {
@@ -155,4 +214,62 @@ func (p *PolyLLM) loadProviderModelsWithCache(ctx context.Context, client llms.L
 		logger.DefaultLogger.Error("failed to save model cache", "err", err)
 	}
 	return modelCache.Models, nil
+}
+
+func (p *PolyLLM) GetMCPTools(ctx context.Context, modelInfo string) []llms.Tool {
+	// model=gpt-4o?mcp=fetch,everything&tools=fetch,everything
+	// Extract MCP servers from model string
+	llmTools := make([]llms.Tool, 0)
+	params := strings.Split(modelInfo, "&")
+	for _, param := range params {
+		parts := strings.Split(param, "=")
+		if len(parts) != 2 {
+			logger.DefaultLogger.Error("invalid param", "param", param)
+			continue
+		}
+		if parts[0] == "mcp" {
+			mcpNames := strings.Split(parts[1], ",")
+			if slices.Contains(mcpNames, "all") {
+				mcpNames = slices.Sorted(maps.Keys(p.mcpClientMappings))
+			}
+			for _, name := range mcpNames {
+				name = strings.TrimSpace(name)
+				if client, ok := p.mcpClientMappings[name]; ok {
+					mcpTools, err := client.ListTools(ctx, mcp.ListToolsRequest{})
+					if err != nil {
+						logger.DefaultLogger.Error("failed to list tools", "err", err, "mcp_server", name)
+						continue
+					}
+					for _, tool := range mcpTools.Tools {
+						llmTools = append(llmTools, mcpToolToLlmsTool(name, tool))
+					}
+				}
+			}
+		}
+	}
+	return llmTools
+}
+
+func (p *PolyLLM) GetMCPClientByToolName(ctx context.Context, toolName string) (mcpclient.MCPClient, string, error) {
+	params := strings.Split(toolName, "_")
+	if len(params) != 3 || params[0] != "mcp" {
+		return nil, "", fmt.Errorf("tool name must be in format mcp_{mcp_server_name}_{tool_name}")
+	}
+	mcpName := params[1]
+	mcpToolName := params[2]
+	if client, ok := p.mcpClientMappings[mcpName]; ok {
+		return client, mcpToolName, nil
+	}
+	return nil, "", fmt.Errorf("tool %s not found", toolName)
+}
+
+func mcpToolToLlmsTool(mcpName string, tool mcp.Tool) llms.Tool {
+	return llms.Tool{
+		Type: llms.ToolTypeFunction,
+		Function: &llms.FunctionDefinition{
+			Name:        fmt.Sprintf("mcp_%s_%s", mcpName, tool.Name),
+			Description: tool.Description,
+			Parameters:  tool.InputSchema,
+		},
+	}
 }

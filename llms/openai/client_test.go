@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/recally-io/polyllm/llms"
-	"github.com/recally-io/polyllm/providers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +18,7 @@ func TestNew(t *testing.T) {
 	assert.Equal(t, baseURL, client.BaseURL)
 
 	customURL := "https://custom.openai.com"
-	client, err = New("key", providers.WithBaseURL(customURL))
+	client, err = New("key", llms.WithBaseURL(customURL))
 	assert.NoError(t, err)
 	assert.Equal(t, customURL, client.BaseURL)
 }
@@ -70,7 +69,7 @@ func TestListModels(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := New("key", providers.WithBaseURL(server.URL))
+			client, _ := New("key", llms.WithBaseURL(server.URL))
 
 			models, err := client.ListModels(context.Background())
 			if tt.expectError {
@@ -150,7 +149,7 @@ func TestChatCompletion(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, _ := New("key", providers.WithBaseURL(server.URL))
+			client, _ := New("key", llms.WithBaseURL(server.URL))
 
 			var response llms.StreamingChatCompletionResponse
 			client.ChatCompletion(context.Background(), tt.request, func(resp llms.StreamingChatCompletionResponse) {
@@ -220,7 +219,7 @@ func TestGenerateText(t *testing.T) {
 			}))
 			defer server.Close()
 
-			client, err := New("key", providers.WithBaseURL(server.URL))
+			client, err := New("key", llms.WithBaseURL(server.URL))
 			assert.NoError(t, err)
 
 			text, err := client.GenerateText(context.Background(), tt.model, tt.prompt)

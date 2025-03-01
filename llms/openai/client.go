@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/recally-io/polyllm/llms"
-	"github.com/recally-io/polyllm/providers"
 )
 
 const baseURL = "https://api.openai.com/v1"
@@ -17,14 +16,14 @@ const baseURL = "https://api.openai.com/v1"
 // Client is the client for interacting with OpenAI's API.
 // It implements various LLM operations using the OpenAI API.
 type Client struct {
-	*providers.Provider
+	*llms.Provider
 }
 
 // New creates a new OpenAI client with the provided configuration options.
 // opts: Configuration options for the client
-func New(apiKey string, opts ...providers.Option) (*Client, error) {
-	provider := &providers.Provider{
-		Type:    providers.ProviderTypeOpenAI,
+func New(apiKey string, opts ...llms.Option) (*Client, error) {
+	provider := &llms.Provider{
+		Type:    llms.ProviderTypeOpenAI,
 		APIKey:  apiKey,
 		BaseURL: baseURL,
 	}
@@ -39,8 +38,8 @@ func New(apiKey string, opts ...providers.Option) (*Client, error) {
 	return &Client{Provider: provider}, nil
 }
 
-func (c *Client) GetProviderName() string {
-	return c.Provider.Name
+func (c *Client) GetProvider() *llms.Provider {
+	return c.Provider
 }
 
 // ListModels retrieves the list of available models from OpenAI.

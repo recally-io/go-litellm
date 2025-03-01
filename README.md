@@ -16,10 +16,15 @@ PolyLLM is a unified Go interface for multiple Large Language Model (LLM) provid
 		- [Library](#library)
 		- [CLI Tool](#cli-tool)
 		- [HTTP Server](#http-server)
+	- [Configuration](#configuration)
+		- [JSON Configuration File](#json-configuration-file)
+		- [MCP Configuration](#mcp-configuration)
 	- [Usage](#usage)
 		- [API Usage](#api-usage)
 			- [Basic Example](#basic-example)
+			- [Using Configuration File](#using-configuration-file)
 			- [Chat Completion Example](#chat-completion-example)
+			- [Using MCP](#using-mcp)
 		- [CLI Usage](#cli-usage)
 			- [Installation](#installation-1)
 			- [Examples](#examples)
@@ -28,18 +33,15 @@ PolyLLM is a unified Go interface for multiple Large Language Model (LLM) provid
 			- [Starting the Server](#starting-the-server)
 			- [API Endpoints](#api-endpoints)
 			- [Example Request](#example-request)
-	- [Contributing](#contributing)
 	- [License](#license)
 
 ## Features
 
 - **Single Interface**: Interact with multiple LLM providers through a unified API
 - **Provider Agnostic**: Easily switch between providers without changing your code
-- **Streaming Support**: Full support for streaming responses from supported LLM providers
-- **Extensible**: Simple to add support for new providers
 - **Multiple Interfaces**: Access LLMs through a Go API, CLI tool, or HTTP server
-- **OpenAI-Compatible**: HTTP server provides OpenAI-compatible endpoints
-- **Docker Support**: Ready-to-use Docker images for both CLI and server components
+- **MCP Support**: Builtin support for [Model Context Protocol](https://modelcontextprotocol.io/introduction)
+- **Configuration File**: JSON-based configuration for providers and MCP tools
 
 ## Supported Providers
 
@@ -83,6 +85,74 @@ go install github.com/recally-io/polyllm/cmd/polyllm-server@latest
 docker pull ghcr.io/recally-io/polyllm-server:latest
 ```
 
+## Configuration
+
+### JSON Configuration File
+
+PolyLLM supports configuration via a JSON file. This allows you to define LLM providers and MCP tools.
+
+Example configuration file:
+
+```json
+{
+  "llms": [
+    {
+      "name": "gemini",
+      "type": "gemini",
+      "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "env_prefix": "GEMINI_",
+      "api_key": "<GOOGLE_API_KEY>",
+      "models": [
+        {
+          "id": "gemini-2.0-flash"
+        },
+        {
+          "id": "gemini-2.0-flash-lite"
+        },
+        {
+          "id": "gemini-1.5-flash"
+        },
+        {
+          "id": "gemini-1.5-flash-8b"
+        },
+        {
+          "id": "gemini-1.5-pro"
+        },
+        {
+          "id": "text-embedding-004"
+        }
+      ]
+    }
+  ],
+  "mcps": {
+    "fetch": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-fetch"
+      ]
+    },
+    "puppeteer": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--init",
+        "-e",
+        "DOCKER_CONTAINER=true",
+        "mcp/puppeteer"
+      ]
+    }
+  }
+}
+```
+
+### MCP Configuration
+
+Model Context Protocol (MCP) tools can be defined in the configuration file under the `mcps` section. Each tool is specified with a command and arguments.
+
+To use MCP tools with a model, append `?mcp=<tool1>,<tool2>` to the model name or use `?mcp=all` to enable all configured MCP tools.
+
 ## Usage
 
 ### API Usage
@@ -109,6 +179,45 @@ func main() {
 	response, err := llm.GenerateText(
 		context.Background(),
 		"openai/gpt-3.5-turbo",
+		"Explain quantum computing in simple terms",
+	)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(response)
+}
+```
+
+#### Using Configuration File
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/recally-io/polyllm"
+)
+
+func main() {
+	// Load configuration from file
+	cfg, err := polyllm.LoadConfig("config.json")
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create a new PolyLLM instance with the configuration
+	llm := polyllm.NewFromConfig(cfg)
+
+	// Generate text using a configured model
+	response, err := llm.GenerateText(
+		context.Background(),
+		"gemini/gemini-1.5-pro",
 		"Explain quantum computing in simple terms",
 	)
 	if err != nil {
@@ -167,6 +276,68 @@ func main() {
 }
 ```
 
+#### Using MCP
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/recally-io/polyllm"
+	"github.com/recally-io/polyllm/llms"
+)
+
+func main() {
+	// Load configuration from file
+	cfg, err := polyllm.LoadConfig("config.json")
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create a new PolyLLM instance with the configuration
+	llm := polyllm.NewFromConfig(cfg)
+
+	// Create a chat completion request with MCP enabled
+	// Use all configured MCP tools
+	req := llms.ChatCompletionRequest{
+		Model: "qwen/qwen-max?mcp=all", // Use all MCP tools
+		Messages: []llms.Message{
+			{
+				Role:    llms.RoleUser,
+				Content: "List the top 10 news from Hacker News",
+			},
+		},
+	}
+
+	// Or specify specific MCP tools
+	req2 := llms.ChatCompletionRequest{
+		Model: "qwen/qwen-max?mcp=fetch,puppeteer", // Use specific MCP tools
+		Messages: []llms.Message{
+			{
+				Role:    llms.RoleUser,
+				Content: "List the top 10 news from Hacker News",
+			},
+		},
+	}
+
+	// Stream the response
+	llm.ChatCompletion(context.Background(), req, func(resp llms.StreamingChatCompletionResponse) {
+		if resp.Err != nil {
+			fmt.Printf("Error: %v\n", resp.Err)
+			os.Exit(1)
+		}
+		
+		if len(resp.Choices) > 0 && resp.Choices[0].Delta.Content != "" {
+			fmt.Print(resp.Choices[0].Delta.Content)
+		}
+	})
+}
+```
+
 ### CLI Usage
 
 #### Installation
@@ -195,6 +366,15 @@ polyllm-cli -m "openai/gpt-3.5-turbo" "Tell me a joke about programming"
 
 # Use a different model
 polyllm-cli -m "deepseek/deepseek-chat" "What is the meaning of life?"
+
+# Using a config file
+polyllm-cli -c "config.json" -m "gemini/gemini-1.5-pro" "What is quantum computing?"
+
+# Using MCP with all tools
+polyllm-cli -c "config.json" -m "qwen/qwen-max?mcp=all" "Top 10 news in hackernews"
+
+# Using MCP with specific tools
+polyllm-cli -c "config.json" -m "qwen/qwen-max?mcp=fetch,puppeteer" "Top 10 news in hackernews"
 ```
 
 ### HTTP Server
@@ -214,6 +394,9 @@ export OPENAI_API_KEY=your_api_key
 polyllm-server
 # or use docker 
 docker run --rm -e OPENAI_API_KEY=your_api_key -p 8088:8088 ghcr.io/recally-io/polyllm-server:latest
+
+# Start with a configuration file
+polyllm-server -c config.json
 
 # Or specify a custom port
 PORT=3000 polyllm-server
@@ -242,22 +425,16 @@ curl -X POST http://localhost:8088/v1/chat/completions \
     ]
   }'
 
-# Request to list models
-curl http://localhost:8088/models
-
-# Request with authentication (if enabled)
-curl -H "Authorization: Bearer your_api_key" http://localhost:8088/models
+# Request with MCP enabled
+curl -X POST http://localhost:8088/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen/qwen-max?mcp=all",
+    "messages": [
+      {"role": "user", "content": "Top 10 news in hackernews"}
+    ]
+  }'
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 

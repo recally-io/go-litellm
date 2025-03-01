@@ -7,21 +7,27 @@ import (
 	"log/slog"
 
 	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/logger"
 )
 
 type LLMService struct {
-	llm llms.LLM
+	provider LLMProvider
 }
 
-func NewLLMService(llm llms.LLM) *LLMService {
+type LLMProvider interface {
+	ListModels(ctx context.Context) ([]llms.Model, error)
+	ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption)
+}
+
+func NewLLMService(provider LLMProvider) *LLMService {
 	return &LLMService{
-		llm: llm,
+		provider: provider,
 	}
 }
 
 func (s *LLMService) ListModels() {
 	ctx := context.Background()
-	models, err := s.llm.ListModels(ctx)
+	models, err := s.provider.ListModels(ctx)
 	if err != nil {
 		fmt.Printf("Failed to list models: %v\n", err)
 		return
@@ -34,8 +40,8 @@ func (s *LLMService) ListModels() {
 }
 
 func (s *LLMService) ChatCompletion(modelName, prompt string) {
-	slog.Debug(fmt.Sprintf("Chatting with model: %s\n", modelName))
-	slog.Debug(fmt.Sprintf("Prompt: %s\n\n", prompt))
+	slog.Debug(fmt.Sprintf("%sChatting with model: %s%s\n", logger.ColorBlue, modelName, logger.ColorReset))
+	slog.Debug(fmt.Sprintf("%sPrompt: %s%s\n\n", logger.ColorGreen, prompt, logger.ColorReset))
 
 	// Create a context
 	ctx := context.Background()
@@ -53,7 +59,7 @@ func (s *LLMService) ChatCompletion(modelName, prompt string) {
 	}
 
 	// Stream the response
-	s.llm.ChatCompletion(ctx, req, func(resp llms.StreamingChatCompletionResponse) {
+	s.provider.ChatCompletion(ctx, req, func(resp llms.StreamingChatCompletionResponse) {
 		if resp.Err != nil && resp.Err != io.EOF {
 			slog.Error("Error streaming response", "err", resp.Err)
 			return
@@ -61,7 +67,7 @@ func (s *LLMService) ChatCompletion(modelName, prompt string) {
 
 		if resp.Response != nil && len(resp.Response.Choices) > 0 {
 			if resp.Response.Choices[0].Delta != nil {
-				fmt.Print(resp.Response.Choices[0].Delta.Content)
+				fmt.Printf("%s%s%s", logger.ColorCyan, resp.Response.Choices[0].Delta.Content, logger.ColorReset)
 			}
 		}
 	})

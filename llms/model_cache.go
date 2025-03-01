@@ -1,4 +1,4 @@
-package polyllm
+package llms
 
 import (
 	"encoding/json"
@@ -8,14 +8,12 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/recally-io/polyllm/llms"
 )
 
 // ModelCache represents the cache of models
 type ModelCache struct {
-	Models    []llms.Model `json:"models"`
-	Timestamp time.Time    `json:"timestamp"`
+	Models    []Model   `json:"models"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Global variables for model cache
@@ -33,13 +31,14 @@ func init() {
 	} else {
 		cachePath = filepath.Join(userCacheDir, "polyllm", "models")
 	}
+	slog.Debug("cache path", "path", cachePath)
 	if err := os.MkdirAll(filepath.Dir(cachePath), 0755); err != nil {
 		slog.Error("Error creating cache directory", "err", err)
 	}
 }
 
 // Load loads the model cache from the file
-func loadModelCache(providerName string) (ModelCache, error) {
+func LoadModelCache(providerName string) (ModelCache, error) {
 	modelCacheMutex.RLock()
 	defer modelCacheMutex.RUnlock()
 	modelCachePath := filepath.Join(cachePath, providerName+".json")
@@ -50,7 +49,7 @@ func loadModelCache(providerName string) (ModelCache, error) {
 	// Check if cache file exists
 	if _, err := os.Stat(modelCachePath); os.IsNotExist(err) {
 		return ModelCache{
-			Models:    make([]llms.Model, 0),
+			Models:    make([]Model, 0),
 			Timestamp: time.Time{},
 		}, nil
 	}
@@ -65,7 +64,7 @@ func loadModelCache(providerName string) (ModelCache, error) {
 	err = json.Unmarshal(data, &cache)
 	if err != nil {
 		return ModelCache{
-			Models:    make([]llms.Model, 0),
+			Models:    make([]Model, 0),
 			Timestamp: time.Time{},
 		}, err
 	}
@@ -74,7 +73,7 @@ func loadModelCache(providerName string) (ModelCache, error) {
 }
 
 // Save saves the model cache to the file
-func saveModelCache(providerName string, cache ModelCache) error {
+func SaveModelCache(providerName string, cache ModelCache) error {
 	modelCacheMutex.Lock()
 	defer modelCacheMutex.Unlock()
 	modelCachePath := filepath.Join(cachePath, providerName+".json")
@@ -96,6 +95,6 @@ func saveModelCache(providerName string, cache ModelCache) error {
 }
 
 // IsValid checks if the cache is valid (less than 1 hour old)
-func isModelCacheValid(cache ModelCache) bool {
+func IsModelCacheValid(cache ModelCache) bool {
 	return !cache.Timestamp.IsZero() && time.Since(cache.Timestamp) < time.Hour
 }

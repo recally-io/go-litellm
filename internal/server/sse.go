@@ -11,7 +11,7 @@ import (
 	"github.com/recally-io/polyllm/llms"
 )
 
-func handleStreamingResponse(w http.ResponseWriter, ctx context.Context, llm llms.LLM, req llms.ChatCompletionRequest) {
+func handleStreamingResponse(w http.ResponseWriter, ctx context.Context, llm LLMProvider, req llms.ChatCompletionRequest) {
 	slog.Info("Starting streaming response handler", "model", req.Model)
 	// Set headers for SSE
 	w.Header().Set("Content-Type", "text/event-stream")
@@ -62,10 +62,10 @@ func handleStreamingResponse(w http.ResponseWriter, ctx context.Context, llm llm
 
 	slog.Debug("Initiating chat completion with streaming")
 	llm.ChatCompletion(ctx, req, streamingFunc)
-	slog.Info("Completed streaming response handling")
+	slog.Debug("Completed streaming response handling")
 }
 
-func handleNonStreamingResponse(w http.ResponseWriter, ctx context.Context, llm llms.LLM, req llms.ChatCompletionRequest) {
+func handleNonStreamingResponse(w http.ResponseWriter, ctx context.Context, llm LLMProvider, req llms.ChatCompletionRequest) {
 	slog.Info("Starting non-streaming response handler", "model", req.Model)
 	w.Header().Set("Content-Type", "application/json")
 

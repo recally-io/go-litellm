@@ -11,9 +11,10 @@ import (
 	"github.com/recally-io/polyllm"
 )
 
-func StartServer() {
+func StartServer(cfg polyllm.Config) {
 	mux := http.NewServeMux()
-	llmService := NewLLMService(polyllm.New())
+	provider := polyllm.NewFromConfig(cfg)
+	llmService := NewLLMService(provider)
 	mux.HandleFunc("POST /chat/completions", loggingMiddleware(authMiddleware(llmService.chatCompletion)))
 	mux.HandleFunc("POST /v1/chat/completions", loggingMiddleware(authMiddleware(llmService.chatCompletion)))
 
@@ -29,7 +30,7 @@ func StartServer() {
 		Addr:    fmt.Sprintf(":%s", port),
 		Handler: mux,
 	}
-	slog.Info("Starting Litellm server", "port", port)
+	slog.Info("Starting polyllm server", "port", port)
 	if err := server.ListenAndServe(); err != nil {
 		slog.Error("Error starting server", "err", err)
 	}

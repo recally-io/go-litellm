@@ -1,4 +1,4 @@
-package providers
+package llms
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/recally-io/polyllm/llms"
 )
 
 // ProviderType is a string type for the names of supported LLM providers.
@@ -26,6 +24,8 @@ const (
 	ProviderTypeGroq             ProviderType = "groq"
 	ProviderTypeXai              ProviderType = "xai"
 	ProviderTypeSiliconflow      ProviderType = "siliconflow"
+	ProviderTypeTogether         ProviderType = "together"
+	ProviderTypeFireworks        ProviderType = "fireworks"
 )
 
 // Provider represents a provider of LLM services.
@@ -45,7 +45,7 @@ type Provider struct {
 	ModelPrefix string `json:"model_prefix,omitempty"`
 	// Models is a list of model ids.
 	// In env it should be set as a comma separated string: "model1,model2"
-	Models []llms.Model `json:"models,omitempty" `
+	Models []Model `json:"models,omitempty" `
 	// ModelAlias is a map of model aliases to model ids.
 	// In env it should be set as a key value value: "alias1=model1,alias2=model2"
 	ModelAlias map[string]string `json:"model_alias,omitempty"`
@@ -73,10 +73,10 @@ func (p *Provider) Load() {
 
 		models := strings.Split(getEnvValue("MODELS"), ",")
 		if len(models) > 0 {
-			p.Models = make([]llms.Model, 0)
+			p.Models = make([]Model, 0)
 			for _, model := range models {
 				if model != "" {
-					p.Models = append(p.Models, llms.Model{
+					p.Models = append(p.Models, Model{
 						ID:     model,
 						Name:   model,
 						Object: "model",
@@ -114,6 +114,8 @@ func (p *Provider) Load() {
 
 // GetRealModel returns the real model name based on the provider's prefix and model alias.
 func (p *Provider) GetRealModel(model string) string {
+	// remove everything after ?
+	model = strings.Split(model, "?")[0]
 	model = strings.TrimPrefix(model, p.ModelPrefix)
 	if realModel, ok := p.ModelAlias[model]; ok {
 		return realModel
@@ -121,8 +123,8 @@ func (p *Provider) GetRealModel(model string) string {
 	return model
 }
 
-func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
-	models := make([]llms.Model, 0)
+func (p *Provider) GetModelList(ctx context.Context) []Model {
+	models := make([]Model, 0)
 
 	if len(p.Models) > 0 {
 		models = append(models, p.Models...)
@@ -133,7 +135,7 @@ func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
 			if p.ModelPrefix != "" {
 				alias = p.ModelPrefix + alias
 			}
-			models = append(models, llms.Model{
+			models = append(models, Model{
 				ID:     alias,
 				Object: "model",
 			})

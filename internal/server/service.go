@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -9,12 +10,17 @@ import (
 )
 
 type LLMService struct {
-	llm llms.LLM
+	provider LLMProvider
 }
 
-func NewLLMService(llm llms.LLM) *LLMService {
+type LLMProvider interface {
+	ListModels(ctx context.Context) ([]llms.Model, error)
+	ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption)
+}
+
+func NewLLMService(provider LLMProvider) *LLMService {
 	return &LLMService{
-		llm: llm,
+		provider: provider,
 	}
 }
 
@@ -25,7 +31,7 @@ type listModelsResponse struct {
 
 func (s *LLMService) listModels(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	models, err := s.llm.ListModels(ctx)
+	models, err := s.provider.ListModels(ctx)
 	if err != nil {
 		http.Error(w, "Failed to list models", http.StatusInternalServerError)
 		return
@@ -57,8 +63,8 @@ func (s *LLMService) chatCompletion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Stream {
-		handleStreamingResponse(w, ctx, s.llm, req)
+		handleStreamingResponse(w, ctx, s.provider, req)
 	} else {
-		handleNonStreamingResponse(w, ctx, s.llm, req)
+		handleNonStreamingResponse(w, ctx, s.provider, req) // updated to use s.llmService
 	}
 }

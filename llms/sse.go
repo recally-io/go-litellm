@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+type StreamingChatCompletionText struct {
+	Content string
+	Err     error
+}
+
 // StreamingSSEResponse handles streaming responses from OpenAI's API.
 // It reads the response body line by line, processes each chunk of data,
 // and calls the provided streaming function with the processed content.

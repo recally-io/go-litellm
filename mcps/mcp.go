@@ -3,21 +3,21 @@ package mcps
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	mcpclient "github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/recally-io/polyllm/logger"
 )
 
-type ServerConfig struct {
+type Provider struct {
 	Command string            `json:"command"`
 	Args    []string          `json:"args"`
 	Env     map[string]string `json:"env,omitempty"`
 }
 
 func CreateMCPClients(
-	config map[string]ServerConfig,
+	config map[string]Provider,
 ) (map[string]mcpclient.MCPClient, error) {
 	clients := make(map[string]mcpclient.MCPClient)
 
@@ -44,7 +44,7 @@ func CreateMCPClients(
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		logger.DefaultLogger.Info("Initializing mcp server...", "name", name)
+		slog.Info("Initializing mcp server...", "name", name)
 		initRequest := mcp.InitializeRequest{}
 		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 		initRequest.Params.ClientInfo = mcp.Implementation{
@@ -67,7 +67,7 @@ func CreateMCPClients(
 		}
 
 		clients[name] = client
-		logger.DefaultLogger.Info("Initialized mcp server", "name", name)
+		slog.Info("Initialized mcp server", "name", name)
 	}
 
 	return clients, nil

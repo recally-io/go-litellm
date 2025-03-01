@@ -1,4 +1,4 @@
-package providers
+package llms
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/recally-io/polyllm/llms"
 )
 
 // ProviderType is a string type for the names of supported LLM providers.
@@ -47,7 +45,7 @@ type Provider struct {
 	ModelPrefix string `json:"model_prefix,omitempty"`
 	// Models is a list of model ids.
 	// In env it should be set as a comma separated string: "model1,model2"
-	Models []llms.Model `json:"models,omitempty" `
+	Models []Model `json:"models,omitempty" `
 	// ModelAlias is a map of model aliases to model ids.
 	// In env it should be set as a key value value: "alias1=model1,alias2=model2"
 	ModelAlias map[string]string `json:"model_alias,omitempty"`
@@ -75,10 +73,10 @@ func (p *Provider) Load() {
 
 		models := strings.Split(getEnvValue("MODELS"), ",")
 		if len(models) > 0 {
-			p.Models = make([]llms.Model, 0)
+			p.Models = make([]Model, 0)
 			for _, model := range models {
 				if model != "" {
-					p.Models = append(p.Models, llms.Model{
+					p.Models = append(p.Models, Model{
 						ID:     model,
 						Name:   model,
 						Object: "model",
@@ -125,8 +123,8 @@ func (p *Provider) GetRealModel(model string) string {
 	return model
 }
 
-func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
-	models := make([]llms.Model, 0)
+func (p *Provider) GetModelList(ctx context.Context) []Model {
+	models := make([]Model, 0)
 
 	if len(p.Models) > 0 {
 		models = append(models, p.Models...)
@@ -137,7 +135,7 @@ func (p *Provider) GetModelList(ctx context.Context) []llms.Model {
 			if p.ModelPrefix != "" {
 				alias = p.ModelPrefix + alias
 			}
-			models = append(models, llms.Model{
+			models = append(models, Model{
 				ID:     alias,
 				Object: "model",
 			})

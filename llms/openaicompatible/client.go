@@ -3,13 +3,13 @@ package openaicompatible
 import (
 	"fmt"
 
-	"github.com/recally-io/polyllm/providers"
-	"github.com/recally-io/polyllm/providers/openai"
+	"github.com/recally-io/polyllm/llms"
+	"github.com/recally-io/polyllm/llms/openai"
 )
 
-func New(baseUrl, apiKey string, opts ...providers.Option) (*openai.Client, error) {
-	provider := &providers.Provider{
-		Type:    providers.ProviderTypeOpenAICompatible,
+func New(baseUrl, apiKey string, opts ...llms.Option) (*openai.Client, error) {
+	provider := &llms.Provider{
+		Type:    llms.ProviderTypeOpenAICompatible,
 		BaseURL: baseUrl,
 		APIKey:  apiKey,
 	}

@@ -1,72 +1,73 @@
 package llms
 
-// RequestOption is a function that configures a ChatCompletionRequest.
-type RequestOption func(*ChatCompletionRequest)
+import (
+	"net/http"
+	"time"
+)
 
-// WithModel specifies which model name to use.
-func WithModel(model string) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.Model = model
+type Option func(*Provider)
+
+func New(opts ...Option) *Provider {
+	p := &Provider{
+		HttpTimeout: 60 * time.Second,
+		HttpClient:  http.DefaultClient,
+	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
+}
+
+func WithName(name string) Option {
+	return func(p *Provider) {
+		p.Name = name
 	}
 }
 
-// WithMaxTokens specifies the max number of tokens to generate.
-func WithMaxTokens(maxTokens int) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.MaxTokens = maxTokens
+func WithBaseURL(url string) Option {
+	return func(p *Provider) {
+		p.BaseURL = url
 	}
 }
 
-// WithMaxCompletionTokens specifies the max number of completion tokens to generate.
-func WithMaxCompletionTokens(maxCompletionTokens int) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.MaxCompletionTokens = maxCompletionTokens
+func WithAPIKey(apiKey string) Option {
+	return func(p *Provider) {
+		p.APIKey = apiKey
 	}
 }
 
-// WithTemperature specifies the model temperature, a hyperparameter that
-// regulates the randomness, or creativity, of the AI's responses.
-func WithTemperature(temperature float32) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.Temperature = temperature
+func WithEnvPrefix(envPrefix string) Option {
+	return func(p *Provider) {
+		p.EnvPrefix = envPrefix
 	}
 }
 
-// WithTopP	will add an option to use top-p sampling.
-func WithTopP(topP float32) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.TopP = topP
+func WithModelPrefix(prefix string) Option {
+	return func(p *Provider) {
+		p.ModelPrefix = prefix
 	}
 }
 
-// WithSeed will add an option to use deterministic sampling.
-func WithSeed(seed int) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.Seed = &seed
+func WithModels(models []Model) Option {
+	return func(p *Provider) {
+		p.Models = models
 	}
 }
 
-// WithN will add an option to set how many chat completion choices to generate for each input message.
-func WithN(n int) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.N = n
+func WithModelAlias(alias map[string]string) Option {
+	return func(p *Provider) {
+		p.ModelAlias = alias
 	}
 }
 
-func WithStream(stream bool) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.Stream = stream
+func WithHttpTimeout(timeout time.Duration) Option {
+	return func(p *Provider) {
+		p.HttpTimeout = timeout
 	}
 }
 
-func WithExtraHeaders(headers map[string]string) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.ExtraHeaders = headers
-	}
-}
-
-func WithTools(tools []Tool) RequestOption {
-	return func(o *ChatCompletionRequest) {
-		o.Tools = tools
+func WithHttpClient(client *http.Client) Option {
+	return func(p *Provider) {
+		p.HttpClient = client
 	}
 }

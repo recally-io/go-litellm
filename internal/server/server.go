@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/recally-io/polyllm"
-	"github.com/recally-io/polyllm/logger"
 )
 
-func StartServer() {
+func StartServer(cfg polyllm.Config) {
 	mux := http.NewServeMux()
-	llmService := NewLLMService(polyllm.New())
+	provider := polyllm.NewFromConfig(cfg)
+	llmService := NewLLMService(provider)
 	mux.HandleFunc("POST /chat/completions", loggingMiddleware(authMiddleware(llmService.chatCompletion)))
 	mux.HandleFunc("POST /v1/chat/completions", loggingMiddleware(authMiddleware(llmService.chatCompletion)))
 
@@ -49,7 +49,7 @@ func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		// Log request details after processing
 		duration := time.Since(start)
-		logger.DefaultLogger.Info("Request processed",
+		slog.Info("Request processed",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", rw.statusCode,

@@ -68,9 +68,18 @@ func main() {
 	service := cli.NewLLMService(polyllm.NewFromConfig(config))
 
 	// Check if the command is "models"
-	if len(args) > 0 && args[0] == "models" {
-		service.ListModels()
-		return
+	if len(args) > 0 {
+		switch args[0] {
+		case "models":
+			service.ListModels()
+			return
+		case "help":
+			printUsage()
+			return
+		case "tools":
+			service.ListMCPTools()
+			return
+		}
 	}
 
 	// Check if we need to chat with a model

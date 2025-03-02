@@ -32,7 +32,7 @@ func (p *PolyLLM) preProcess(ctx context.Context, model string) (LLM, string, []
 
 	tools := []llms.Tool{}
 	if len(info) > 1 {
-		tools = p.GetMCPTools(ctx, info[1])
+		tools = p.getMCPToolsByModel(ctx, info[1])
 	}
 
 	return llm, providerModel, tools, nil

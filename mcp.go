@@ -2,18 +2,39 @@ package polyllm
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"maps"
 	"slices"
 	"strings"
 
-	mcpclient "github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/recally-io/polyllm/llms"
 )
 
-func (p *PolyLLM) GetMCPTools(ctx context.Context, modelInfo string) []llms.Tool {
+func (p *PolyLLM) ListMCPTools(ctx context.Context) ([]llms.Tool, error) {
+	mcpNames := slices.Sorted(maps.Keys(p.mcpClientMappings))
+	return p.listMCPToolsByMCPNames(ctx, mcpNames)
+}
+
+func (p *PolyLLM) listMCPToolsByMCPNames(ctx context.Context, mcpNames []string) ([]llms.Tool, error) {
+	llmTools := make([]llms.Tool, 0)
+	for _, name := range mcpNames {
+		name = strings.TrimSpace(name)
+		if client, ok := p.mcpClientMappings[name]; ok {
+			mcpTools, err := client.ListTools(ctx, mcp.ListToolsRequest{})
+			if err != nil {
+				slog.Error("failed to list tools", "err", err, "mcp_server", name)
+				continue
+			}
+			for _, tool := range mcpTools.Tools {
+				llmTools = append(llmTools, convertMCPToolToLLMTool(name, tool))
+			}
+		}
+	}
+	return llmTools, nil
+}
+
+func (p *PolyLLM) getMCPToolsByModel(ctx context.Context, modelInfo string) []llms.Tool {
 	// model=gpt-4o?mcp=fetch,everything&tools=fetch,everything
 	// Extract MCP servers from model string
 	llmTools := make([]llms.Tool, 0)
@@ -29,33 +50,13 @@ func (p *PolyLLM) GetMCPTools(ctx context.Context, modelInfo string) []llms.Tool
 			if slices.Contains(mcpNames, "all") {
 				mcpNames = slices.Sorted(maps.Keys(p.mcpClientMappings))
 			}
-			for _, name := range mcpNames {
-				name = strings.TrimSpace(name)
-				if client, ok := p.mcpClientMappings[name]; ok {
-					mcpTools, err := client.ListTools(ctx, mcp.ListToolsRequest{})
-					if err != nil {
-						slog.Error("failed to list tools", "err", err, "mcp_server", name)
-						continue
-					}
-					for _, tool := range mcpTools.Tools {
-						llmTools = append(llmTools, convertMCPToolToLLMTool(name, tool))
-					}
-				}
+			tools, err := p.listMCPToolsByMCPNames(ctx, mcpNames)
+			if err != nil {
+				slog.Error("failed to list tools", "err", err)
+				continue
 			}
+			llmTools = append(llmTools, tools...)
 		}
 	}
 	return llmTools
-}
-
-func (p *PolyLLM) GetMCPClientByToolName(ctx context.Context, toolName string) (mcpclient.MCPClient, string, error) {
-	params := strings.Split(toolName, "_")
-	if len(params) != 3 || params[0] != "mcp" {
-		return nil, "", fmt.Errorf("tool name must be in format mcp_{mcp_server_name}_{tool_name}")
-	}
-	mcpName := params[1]
-	mcpToolName := params[2]
-	if client, ok := p.mcpClientMappings[mcpName]; ok {
-		return client, mcpToolName, nil
-	}
-	return nil, "", fmt.Errorf("tool %s not found", toolName)
 }

@@ -13,9 +13,12 @@ COPY . .
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /go/bin/app ./cmd/${BINARY_NAME}
 
 # Run the binary
-FROM --platform=$BUILDPLATFORM gcr.io/distroless/static-debian12:nonroot
+FROM --platform=$BUILDPLATFORM oven/bun:debian
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 WORKDIR /app
 
 COPY --from=build /go/bin/app /app/app
+
+EXPOSE 8089
 
 CMD ["/app/app"]

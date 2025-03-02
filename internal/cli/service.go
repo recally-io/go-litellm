@@ -17,6 +17,8 @@ type LLMService struct {
 type LLMProvider interface {
 	ListModels(ctx context.Context) ([]llms.Model, error)
 	ChatCompletion(ctx context.Context, req llms.ChatCompletionRequest, streamingFunc func(resp llms.StreamingChatCompletionResponse), options ...llms.RequestOption)
+
+	ListMCPTools(ctx context.Context) ([]llms.Tool, error)
 }
 
 func NewLLMService(provider LLMProvider) *LLMService {
@@ -73,4 +75,18 @@ func (s *LLMService) ChatCompletion(modelName, prompt string) {
 	})
 
 	fmt.Println() // Add a newline at the end
+}
+
+func (s *LLMService) ListMCPTools() {
+	ctx := context.Background()
+	tools, err := s.provider.ListMCPTools(ctx)
+	if err != nil {
+		fmt.Printf("Failed to list MCP tools: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Available MCP tools (format: %smcp_{server_name}_{tool_name}%s)\n", logger.ColorYellow, logger.ColorReset)
+	for idx, tool := range tools {
+		fmt.Printf("\n%d: %s%s%s - %s\n", idx+1, logger.ColorCyan, tool.Function.Name, logger.ColorReset, tool.Function.Description)
+	}
 }

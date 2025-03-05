@@ -11,8 +11,11 @@ import (
 )
 
 type Provider struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
+	// BaseURl for sse mcp server
+	BaseURL string            `json:"base_url,omitempty"`
+	// Command for stdio mcp server
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
 }
 
@@ -20,16 +23,21 @@ func CreateMCPClients(
 	config map[string]Provider,
 ) (map[string]mcpclient.MCPClient, error) {
 	clients := make(map[string]mcpclient.MCPClient)
-
+	var err error
 	for name, server := range config {
-		var env []string
-		for k, v := range server.Env {
-			env = append(env, fmt.Sprintf("%s=%s", k, v))
+		var client mcpclient.MCPClient
+		if server.BaseURL != "" {
+			client, err = mcpclient.NewSSEMCPClient(server.BaseURL)
+		} else {
+			var env []string
+			for k, v := range server.Env {
+				env = append(env, fmt.Sprintf("%s=%s", k, v))
+			}
+			client, err = mcpclient.NewStdioMCPClient(
+				server.Command,
+				env,
+				server.Args...)
 		}
-		client, err := mcpclient.NewStdioMCPClient(
-			server.Command,
-			env,
-			server.Args...)
 		if err != nil {
 			for _, c := range clients {
 				c.Close()
@@ -48,7 +56,7 @@ func CreateMCPClients(
 		initRequest := mcp.InitializeRequest{}
 		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 		initRequest.Params.ClientInfo = mcp.Implementation{
-			Name:    "mcphost",
+			Name:    "polyllm",
 			Version: "0.1.0",
 		}
 		initRequest.Params.Capabilities = mcp.ClientCapabilities{}
